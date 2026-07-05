@@ -1,0 +1,481 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model articles {
+  id                      String                 @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id                 String                 @db.Char(36)
+  category_id             String?                @db.Char(36)
+  cluster_id              String?                @db.Char(36)
+  primary_keyword_id      String?                @db.Char(36)
+  title                   String                 @db.VarChar(500)
+  slug                    String                 @db.VarChar(255)
+  article_type            articles_article_type? @default(cluster)
+  intent                  articles_intent?
+  status                  articles_status?       @default(idea)
+  target_word_count       Int?                   @default(1800)
+  outline                 String?                @db.LongText
+  draft_markdown          String?                @db.LongText
+  draft_html              String?                @db.LongText
+  meta_title              String?                @db.VarChar(255)
+  meta_description        String?                @db.Text
+  internal_links          String?                @db.Text
+  external_sources        String?                @db.Text
+  affiliate_opportunities String?                @db.Text
+  wordpress_post_id       BigInt?
+  wordpress_draft_url     String?                @db.Text
+  published_url           String?                @db.Text
+  publish_date            DateTime?              @db.Date
+  last_updated            DateTime?              @db.Date
+  editor_notes            String?                @db.Text
+  created_at              DateTime?              @default(now()) @db.DateTime(0)
+  updated_at              DateTime?              @default(now()) @db.DateTime(0)
+  article_faqs            article_faqs[]
+  article_sections        article_sections[]
+  sites                   sites                  @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "articles_ibfk_1")
+  categories              categories?            @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "articles_ibfk_2")
+  topic_clusters          topic_clusters?        @relation(fields: [cluster_id], references: [id], onUpdate: NoAction, map: "articles_ibfk_3")
+  keywords                keywords?              @relation(fields: [primary_keyword_id], references: [id], onUpdate: NoAction, map: "articles_ibfk_4")
+  images                  images[]
+  jobs                    jobs[]
+  performance             performance[]
+  revenue                 revenue[]
+
+  @@unique([site_id, slug], map: "unique_article_slug")
+  @@index([category_id], map: "category_id")
+  @@index([cluster_id], map: "cluster_id")
+  @@index([primary_keyword_id], map: "primary_keyword_id")
+}
+
+model categories {
+  id             String               @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id        String               @db.Char(36)
+  name           String               @db.VarChar(255)
+  slug           String               @db.VarChar(255)
+  description    String?              @db.Text
+  priority       categories_priority? @default(medium)
+  status         categories_status?   @default(active)
+  created_at     DateTime?            @default(now()) @db.DateTime(0)
+  articles       articles[]
+  sites          sites                @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "categories_ibfk_1")
+  keywords       keywords[]
+  topic_clusters topic_clusters[]
+
+  @@unique([site_id, slug], map: "unique_category_slug")
+}
+
+model images {
+  id                 String         @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id            String         @db.Char(36)
+  article_id         String?        @db.Char(36)
+  type               images_type?   @default(featured)
+  prompt             String?        @db.LongText
+  alt_text           String?        @db.VarChar(500)
+  file_url           String?        @db.Text
+  wordpress_media_id BigInt?
+  status             images_status? @default(new)
+  created_at         DateTime?      @default(now()) @db.DateTime(0)
+  sites              sites          @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "images_ibfk_1")
+  articles           articles?      @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "images_ibfk_2")
+
+  @@index([article_id], map: "article_id")
+  @@index([site_id], map: "site_id")
+}
+
+model jobs {
+  id                 String        @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id            String?       @db.Char(36)
+  job_type           jobs_job_type
+  status             jobs_status?  @default(queued)
+  related_keyword_id String?       @db.Char(36)
+  related_article_id String?       @db.Char(36)
+  input_data         Json?
+  output_data        Json?
+  error_message      String?       @db.Text
+  started_at         DateTime?     @db.DateTime(0)
+  finished_at        DateTime?     @db.DateTime(0)
+  created_at         DateTime?     @default(now()) @db.DateTime(0)
+  sites              sites?        @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "jobs_ibfk_1")
+  keywords           keywords?     @relation(fields: [related_keyword_id], references: [id], onUpdate: NoAction, map: "jobs_ibfk_2")
+  articles           articles?     @relation(fields: [related_article_id], references: [id], onUpdate: NoAction, map: "jobs_ibfk_3")
+
+  @@index([related_article_id], map: "related_article_id")
+  @@index([related_keyword_id], map: "related_keyword_id")
+  @@index([site_id], map: "site_id")
+}
+
+model keywords {
+  id                String                  @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id           String                  @db.Char(36)
+  category_id       String?                 @db.Char(36)
+  cluster_id        String?                 @db.Char(36)
+  keyword           String                  @db.VarChar(255)
+  intent            keywords_intent?
+  search_volume     Int?                    @default(0)
+  difficulty        Int?
+  cpc               Decimal?                @db.Decimal(10, 2)
+  opportunity_score Int?
+  priority          keywords_priority?      @default(medium)
+  status            keywords_status?        @default(new)
+  related_keywords  String?                 @db.Text
+  notes             String?                 @db.Text
+  created_at        DateTime?               @default(now()) @db.DateTime(0)
+  updated_at        DateTime?               @default(now()) @db.DateTime(0)
+  article_type      keywords_article_type?  @default(cluster)
+  content_stage     keywords_content_stage? @default(keyword)
+  created_by        keywords_created_by?    @default(manual)
+  articles          articles[]
+  jobs              jobs[]
+  sites             sites                   @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keywords_ibfk_1")
+  categories        categories?             @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_2")
+  topic_clusters    topic_clusters?         @relation(fields: [cluster_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_3")
+
+  @@unique([site_id, keyword], map: "unique_keyword")
+  @@index([category_id], map: "category_id")
+  @@index([cluster_id], map: "cluster_id")
+}
+
+model performance {
+  id               String    @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id          String    @db.Char(36)
+  article_id       String?   @db.Char(36)
+  report_date      DateTime  @db.Date
+  impressions      Int?      @default(0)
+  clicks           Int?      @default(0)
+  ctr              Decimal?  @db.Decimal(5, 2)
+  average_position Decimal?  @db.Decimal(6, 2)
+  sessions         Int?      @default(0)
+  notes            String?   @db.Text
+  created_at       DateTime? @default(now()) @db.DateTime(0)
+  sites            sites     @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "performance_ibfk_1")
+  articles         articles? @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "performance_ibfk_2")
+
+  @@unique([article_id, report_date], map: "unique_article_report")
+  @@index([site_id], map: "site_id")
+}
+
+model prompt_versions {
+  id            String                         @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id       String?                        @db.Char(36)
+  prompt_key    String                         @db.VarChar(100)
+  name          String                         @db.VarChar(255)
+  prompt_text   String                         @db.LongText
+  model         String?                        @default("gpt-4.1-mini") @db.VarChar(100)
+  temperature   Decimal?                       @default(0.40) @db.Decimal(3, 2)
+  output_format prompt_versions_output_format? @default(json)
+  version       String?                        @default("1.0") @db.VarChar(50)
+  active        Boolean?                       @default(true)
+  created_at    DateTime?                      @default(now()) @db.DateTime(0)
+  sites         sites?                         @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "prompt_versions_ibfk_1")
+
+  @@unique([site_id, prompt_key, version], map: "unique_active_prompt")
+}
+
+model prompts {
+  id              String                 @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id         String?                @db.Char(36)
+  name            String                 @db.VarChar(255)
+  type            prompts_type
+  prompt_text     String                 @db.LongText
+  input_variables String?                @db.Text
+  output_format   prompts_output_format? @default(json)
+  version         String?                @default("1.0") @db.VarChar(50)
+  active          Boolean?               @default(true)
+  created_at      DateTime?              @default(now()) @db.DateTime(0)
+  updated_at      DateTime?              @default(now()) @db.DateTime(0)
+  sites           sites?                 @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "prompts_ibfk_1")
+
+  @@index([site_id], map: "site_id")
+}
+
+model revenue {
+  id                String    @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id           String    @db.Char(36)
+  article_id        String?   @db.Char(36)
+  revenue_date      DateTime  @db.Date
+  adsense_revenue   Decimal?  @default(0.00) @db.Decimal(10, 2)
+  affiliate_revenue Decimal?  @default(0.00) @db.Decimal(10, 2)
+  product_revenue   Decimal?  @default(0.00) @db.Decimal(10, 2)
+  sponsored_revenue Decimal?  @default(0.00) @db.Decimal(10, 2)
+  total_revenue     Decimal?  @db.Decimal(10, 2)
+  notes             String?   @db.Text
+  created_at        DateTime? @default(now()) @db.DateTime(0)
+  sites             sites     @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "revenue_ibfk_1")
+  articles          articles? @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "revenue_ibfk_2")
+
+  @@unique([article_id, revenue_date], map: "unique_article_revenue")
+  @@index([site_id], map: "site_id")
+}
+
+model sites {
+  id               String            @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_name        String            @db.VarChar(255)
+  domain           String            @unique(map: "domain") @db.VarChar(255)
+  wordpress_url    String?           @db.VarChar(255)
+  main_language    String?           @default("English") @db.VarChar(100)
+  target_countries Json?
+  status           sites_status?     @default(active)
+  monetization     Json?
+  brand_voice      String?           @db.Text
+  notes            String?           @db.Text
+  created_at       DateTime?         @default(now()) @db.DateTime(0)
+  updated_at       DateTime?         @default(now()) @db.DateTime(0)
+  articles         articles[]
+  categories       categories[]
+  images           images[]
+  jobs             jobs[]
+  keywords         keywords[]
+  performance      performance[]
+  prompt_versions  prompt_versions[]
+  prompts          prompts[]
+  revenue          revenue[]
+  topic_clusters   topic_clusters[]
+  workflows        workflows[]
+}
+
+model topic_clusters {
+  id          String                 @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id     String                 @db.Char(36)
+  category_id String                 @db.Char(36)
+  name        String                 @db.VarChar(255)
+  slug        String                 @db.VarChar(255)
+  status      topic_clusters_status? @default(planned)
+  notes       String?                @db.Text
+  created_at  DateTime?              @default(now()) @db.DateTime(0)
+  articles    articles[]
+  keywords    keywords[]
+  sites       sites                  @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "topic_clusters_ibfk_1")
+  categories  categories             @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "topic_clusters_ibfk_2")
+
+  @@unique([site_id, slug], map: "unique_cluster_slug")
+  @@index([category_id], map: "category_id")
+}
+
+model workflows {
+  id               String            @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id          String?           @db.Char(36)
+  name             String            @db.VarChar(255)
+  n8n_workflow_url String?           @db.Text
+  status           workflows_status? @default(testing)
+  last_run         DateTime?         @db.DateTime(0)
+  notes            String?           @db.Text
+  created_at       DateTime?         @default(now()) @db.DateTime(0)
+  sites            sites?            @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "workflows_ibfk_1")
+
+  @@index([site_id], map: "site_id")
+}
+
+model article_faqs {
+  id              String               @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  article_id      String               @db.Char(36)
+  faq_order       Int
+  question        String               @db.VarChar(500)
+  answer_goal     String?              @db.Text
+  answer_markdown String?              @db.LongText
+  status          article_faqs_status? @default(planned)
+  created_at      DateTime?            @default(now()) @db.DateTime(0)
+  updated_at      DateTime?            @default(now()) @db.DateTime(0)
+  articles        articles             @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "article_faqs_ibfk_1")
+
+  @@unique([article_id, faq_order], map: "unique_article_faq_order")
+}
+
+model article_sections {
+  id               String                   @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  article_id       String                   @db.Char(36)
+  section_order    Int
+  heading          String                   @db.VarChar(500)
+  purpose          String?                  @db.Text
+  target_words     Int?                     @default(300)
+  status           article_sections_status? @default(planned)
+  content_markdown String?                  @db.LongText
+  created_at       DateTime?                @default(now()) @db.DateTime(0)
+  updated_at       DateTime?                @default(now()) @db.DateTime(0)
+  articles         articles                 @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "article_sections_ibfk_1")
+
+  @@unique([article_id, section_order], map: "unique_article_section_order")
+}
+
+enum jobs_job_type {
+  generate_outline
+  generate_draft
+  seo_review
+  wordpress_draft
+}
+
+enum images_type {
+  featured
+  inline
+  diagram
+  social
+}
+
+enum jobs_status {
+  queued
+  running
+  completed
+  failed
+}
+
+enum prompts_type {
+  keyword
+  outline
+  draft
+  seo
+  image
+  review
+  refresh
+  wordpress
+}
+
+enum workflows_status {
+  testing
+  active
+  paused
+  error
+}
+
+enum categories_priority {
+  high
+  medium
+  low
+}
+
+enum keywords_intent {
+  informational
+  commercial
+  transactional
+  navigational
+}
+
+enum topic_clusters_status {
+  planned
+  active
+  complete
+  paused
+}
+
+enum categories_status {
+  active
+  paused
+  archived
+}
+
+enum prompts_output_format {
+  json
+  markdown
+  html
+  plain_text
+}
+
+enum sites_status {
+  active
+  paused
+  archived
+}
+
+enum articles_article_type {
+  pillar
+  cluster
+  faq
+  review
+  comparison
+  news
+  how_to
+}
+
+enum prompt_versions_output_format {
+  json
+  markdown
+  html
+  plain_text
+}
+
+enum articles_intent {
+  informational
+  commercial
+  transactional
+  navigational
+}
+
+enum images_status {
+  new
+  generated
+  uploaded
+  approved
+  rejected
+}
+
+enum articles_status {
+  idea
+  approved
+  outline_ready
+  draft_ready
+  seo_ready
+  image_ready
+  wordpress_draft
+  human_review
+  published
+  needs_update
+  archived
+}
+
+enum keywords_priority {
+  high
+  medium
+  low
+}
+
+enum keywords_status {
+  new
+  approved
+  planned
+  used
+  rejected
+  needs_review
+}
+
+enum keywords_article_type {
+  pillar
+  cluster
+  faq
+  review
+  comparison
+  news
+  how_to
+}
+
+enum keywords_content_stage {
+  keyword
+  planned
+  outlined
+  drafted
+  review
+  published
+}
+
+enum keywords_created_by {
+  manual
+  ai
+  import
+  api
+}
+
+enum article_faqs_status {
+  planned
+  generated
+  reviewed
+  approved
+}
+
+enum article_sections_status {
+  planned
+  generated
+  reviewed
+  approved
+}

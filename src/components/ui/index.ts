@@ -3,3 +3,4 @@ export { Card } from "./Card";
 export { StatusChip } from "./StatusChip";
 export { PageHeader } from "./PageHeader";
 export { MetricCard } from "./MetricCard";
+export { EmptyState } from "./EmptyState";

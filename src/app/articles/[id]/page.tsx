@@ -1,4 +1,4 @@
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
 import { getArticleById } from "@/repositories/articleRepository";
@@ -25,9 +25,7 @@ export default async function ArticleDetailPage({
   }
 
   return (
-    <>
-      <Nav />
-
+    <AppShell>
       <main className="p-8">
         <section className="rounded-xl border bg-white p-6 shadow-sm">
           <div className="text-sm uppercase text-slate-500">
@@ -151,7 +149,7 @@ export default async function ArticleDetailPage({
         )}
                 
       </main>
-    </>
+    </AppShell>
   );
 }
 

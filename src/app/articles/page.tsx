@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import { getArticles } from "@/repositories/articleRepository";
 
 export default async function ArticlesPage() {
   const articles: any = await getArticles();
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="p-8">
         <h1 className="text-3xl font-bold">Articles</h1>
         <p className="mt-2 text-slate-600">
@@ -47,6 +46,6 @@ export default async function ArticlesPage() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

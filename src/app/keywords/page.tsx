@@ -1,4 +1,4 @@
-import { Nav } from "@/components/Nav";
+import { AppShell } from "@/components/AppShell";
 import { GenerateButton } from "@/components/GenerateButton";
 import { getKeywords } from "@/repositories/keywordRepository";
 
@@ -6,8 +6,7 @@ export default async function KeywordsPage() {
   const keywords: any = await getKeywords();
 
   return (
-    <>
-      <Nav />
+    <AppShell>
       <main className="p-8">
         <h1 className="text-3xl font-bold">Keyword Library</h1>
         <p className="mt-2 text-slate-600">
@@ -53,6 +52,6 @@ export default async function KeywordsPage() {
           </table>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

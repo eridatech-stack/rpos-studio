@@ -37,7 +37,7 @@ export function PromptEditor({ prompt }: { prompt: any }) {
       return;
     }
 
-    setSaved(true);
+    window.location.href = "/ai/prompts";
   }
 
   return (

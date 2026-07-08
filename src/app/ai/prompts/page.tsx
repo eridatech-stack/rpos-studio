@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { ActivatePromptButton } from "@/components/ActivatePromptButton";
 import { getPromptVersions } from "@/repositories/promptStudioRepository";
 import { Card, EmptyState, PageHeader, StatusChip } from "@/components/ui";
 import Link from "next/link";
@@ -31,13 +32,21 @@ export default async function PromptStudioPage() {
                         {prompt.name}
                       </Link>
                     </div>
+
                     <div className="mt-1 text-sm text-slate-500">
                       Key: {prompt.prompt_key} · Model: {prompt.model} · Temp:{" "}
                       {prompt.temperature}
                     </div>
+
                     <div className="mt-1 text-xs text-slate-400">
                       Version {prompt.version} · {prompt.site_name || "Global"}
                     </div>
+
+                    {!prompt.active && (
+                      <div className="mt-3">
+                        <ActivatePromptButton promptId={prompt.id} />
+                      </div>
+                    )}
                   </div>
 
                   <StatusChip status={prompt.active ? "completed" : "planned"} />

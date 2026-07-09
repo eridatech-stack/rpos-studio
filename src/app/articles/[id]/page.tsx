@@ -16,7 +16,6 @@ export default async function ArticleDetailPage({
   if (!article) {
     return (
       <>
-        <Nav />
         <main className="p-8">
           <h1 className="text-2xl font-bold">Article not found</h1>
         </main>

@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
-import { generateArticleDraft } from "@/services/articleDraftService";
-import { publishArticleToWordPressDraft } from "@/services/wordpressService";
+import { workflowStepRegistry } from "@/modules/workflow/steps/stepRegistry";
 
 async function markRunRunning(runId: string, stepCode: string, progress: number) {
   await db.query(
@@ -114,24 +113,28 @@ export async function runProductionWorkflow(productionRunId: string) {
       await markRunRunning(productionRunId, step.step_code, progress);
       await markStepRunning(step.id);
 
-      if (step.step_code === "outline") {
-        // For now, outline is skipped if the article already exists.
-        // Later we will support keyword-based production here.
-        await markStepCompleted(step.id);
+      const executor = workflowStepRegistry[step.step_code];
+
+      if (!executor) {
+        await db.query(
+          `
+          UPDATE production_run_steps
+          SET status = 'skipped',
+              finished_at = NOW()
+          WHERE id = ?
+          `,
+          [step.id]
+        );
+
         continue;
       }
 
-      if (step.step_code === "draft") {
-        await generateArticleDraft(run.article_id);
-        await markStepCompleted(step.id);
-        continue;
-      }
+      await executor.execute({
+        productionRunId,
+        articleId: run.article_id,
+      });
 
-      if (step.step_code === "wordpress_draft") {
-        await publishArticleToWordPressDraft(run.article_id);
-        await markStepCompleted(step.id);
-        continue;
-      }
+      await markStepCompleted(step.id);
 
       await db.query(
         `

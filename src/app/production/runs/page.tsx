@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { getProductionRuns } from "@/modules/production/repository";
 import { Card, EmptyState, MetricCard, PageHeader, StatusChip } from "@/components/ui";
+import { ProgressBar } from "@/shared/ui";
 
 export default async function ProductionRunsPage() {
   const runs = await getProductionRuns();
@@ -41,7 +42,11 @@ export default async function ProductionRunsPage() {
                     </div>
 
                     <div className="mt-1 text-sm text-slate-500">
-                      Current step: {run.current_step || "—"} · Progress: {run.progress_percent ?? 0}%
+                      Current step: {run.current_step || "—"}
+                    </div>
+
+                    <div className="mt-3 max-w-md">
+                      <ProgressBar value={run.progress_percent ?? 0} />
                     </div>
 
                     <div className="mt-1 text-xs text-slate-400">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { useToast } from "@/hooks/useToast";
 
 export function StartProductionButton({
   articleId,
@@ -9,6 +10,7 @@ export function StartProductionButton({
   articleId: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   async function start() {
     setLoading(true);
@@ -18,9 +20,7 @@ export function StartProductionButton({
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        articleId,
-      }),
+      body: JSON.stringify({ articleId }),
     });
 
     const result = await response.json();
@@ -28,21 +28,16 @@ export function StartProductionButton({
     setLoading(false);
 
     if (!response.ok) {
-      alert(result.error);
+      toast.error("Production failed", result.error);
       return;
     }
 
-    alert("Production started.");
+    toast.success("Production started", "Workflow completed successfully.");
   }
 
   return (
-    <Button
-      onClick={start}
-      disabled={loading}
-    >
-      {loading
-        ? "Starting..."
-        : "🚀 Start Production"}
+    <Button onClick={start} disabled={loading}>
+      {loading ? "Starting..." : "🚀 Start Production"}
     </Button>
   );
 }

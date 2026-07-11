@@ -1,11 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ToastContext,
   ToastMessage,
   ToastType,
 } from "@/hooks/useToast";
+
+type InternalToast = ToastMessage & {
+  duration: number;
+  remaining: number;
+  startedAt: number;
+};
+
+const DEFAULT_DURATION = 8000;
 
 const styles: Record<ToastType, string> = {
   success: "border-green-200 bg-green-50 text-green-800",
@@ -21,35 +34,172 @@ const icons: Record<ToastType, string> = {
   warning: "⚠️",
 };
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+export function ToastProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [toasts, setToasts] = useState<InternalToast[]>([]);
+
+  const timers = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
+
+  const removeToast = useCallback((id: string) => {
+    const timer = timers.current[id];
+
+    if (timer) {
+      clearTimeout(timer);
+      delete timers.current[id];
+    }
+
+    setToasts((current) =>
+      current.filter((toast) => toast.id !== id)
+    );
+  }, []);
+
+  const startTimer = useCallback(
+    (id: string, duration: number) => {
+      const existingTimer = timers.current[id];
+
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      timers.current[id] = setTimeout(() => {
+        removeToast(id);
+      }, duration);
+    },
+    [removeToast]
+  );
 
   const addToast = useCallback(
-    (type: ToastType, title: string, description?: string) => {
+    (
+      type: ToastType,
+      title: string,
+      description?: string,
+      duration = DEFAULT_DURATION
+    ) => {
       const id = crypto.randomUUID();
+      const safeDuration = Math.max(1000, duration);
 
-      setToasts((current) => [
-        ...current,
-        { id, type, title, description },
-      ]);
+      const toast: InternalToast = {
+        id,
+        type,
+        title,
+        description,
+        duration: safeDuration,
+        remaining: safeDuration,
+        startedAt: Date.now(),
+      };
 
-      setTimeout(() => {
-        setToasts((current) => current.filter((toast) => toast.id !== id));
-      }, 4000);
+      setToasts((current) => [...current, toast]);
+      startTimer(id, safeDuration);
     },
-    []
+    [startTimer]
+  );
+
+  const pauseToast = useCallback((id: string) => {
+    const timer = timers.current[id];
+
+    if (timer) {
+      clearTimeout(timer);
+      delete timers.current[id];
+    }
+
+    setToasts((current) =>
+      current.map((toast) => {
+        if (toast.id !== id) {
+          return toast;
+        }
+
+        const elapsed = Date.now() - toast.startedAt;
+        const remaining = Math.max(
+          1000,
+          toast.remaining - elapsed
+        );
+
+        return {
+          ...toast,
+          remaining,
+        };
+      })
+    );
+  }, []);
+
+  const resumeToast = useCallback(
+    (id: string) => {
+      let remaining = DEFAULT_DURATION;
+
+      setToasts((current) =>
+        current.map((toast) => {
+          if (toast.id !== id) {
+            return toast;
+          }
+
+          remaining = toast.remaining;
+
+          return {
+            ...toast,
+            startedAt: Date.now(),
+          };
+        })
+      );
+
+      startTimer(id, remaining);
+    },
+    [startTimer]
   );
 
   const value = useMemo(
     () => ({
-      success: (title: string, description?: string) =>
-        addToast("success", title, description),
-      error: (title: string, description?: string) =>
-        addToast("error", title, description),
-      info: (title: string, description?: string) =>
-        addToast("info", title, description),
-      warning: (title: string, description?: string) =>
-        addToast("warning", title, description),
+      success: (
+        title: string,
+        description?: string,
+        duration?: number
+      ) =>
+        addToast(
+          "success",
+          title,
+          description,
+          duration
+        ),
+
+      error: (
+        title: string,
+        description?: string,
+        duration?: number
+      ) =>
+        addToast(
+          "error",
+          title,
+          description,
+          duration
+        ),
+
+      info: (
+        title: string,
+        description?: string,
+        duration?: number
+      ) =>
+        addToast(
+          "info",
+          title,
+          description,
+          duration
+        ),
+
+      warning: (
+        title: string,
+        description?: string,
+        duration?: number
+      ) =>
+        addToast(
+          "warning",
+          title,
+          description,
+          duration
+        ),
     }),
     [addToast]
   );
@@ -58,24 +208,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
 
-      <div className="fixed right-6 top-6 z-50 w-96 space-y-3">
+      <div className="fixed right-6 top-6 z-50 w-[calc(100%-3rem)] max-w-96 space-y-3">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`rounded-2xl border p-4 shadow-lg ${styles[toast.type]}`}
+            onMouseEnter={() => pauseToast(toast.id)}
+            onMouseLeave={() => resumeToast(toast.id)}
+            className={`rounded-2xl border p-4 shadow-lg transition-all duration-200 ${styles[toast.type]}`}
           >
-            <div className="flex gap-3">
-              <div className="text-xl">{icons[toast.type]}</div>
+            <div className="flex items-start gap-3">
+              <div className="text-xl">
+                {icons[toast.type]}
+              </div>
 
-              <div>
-                <div className="font-bold">{toast.title}</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold">
+                  {toast.title}
+                </div>
 
                 {toast.description && (
-                  <div className="mt-1 text-sm opacity-80">
+                  <div className="mt-1 text-sm leading-5 opacity-80">
                     {toast.description}
                   </div>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                aria-label="Close notification"
+                className="rounded-lg px-2 py-1 text-lg leading-none opacity-60 transition hover:bg-black/5 hover:opacity-100"
+              >
+                ×
+              </button>
             </div>
           </div>
         ))}

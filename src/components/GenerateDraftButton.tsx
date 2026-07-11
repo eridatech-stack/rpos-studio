@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function GenerateDraftButton({ articleId }: { articleId: string }) {
   const [loading, setLoading] = useState(false);
 
   async function generateDraft() {
     setLoading(true);
+
+    const router = useRouter();
 
     const response = await fetch("/api/articles/generate-draft", {
       method: "POST",
@@ -24,7 +27,7 @@ export function GenerateDraftButton({ articleId }: { articleId: string }) {
       return;
     }
 
-    window.location.reload();
+    router.refresh();
   }
 
   return (

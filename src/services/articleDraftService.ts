@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { openai } from "@/lib/openai";
+import { getOpenAIClient } from "@/lib/openai";
 import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { renderPrompt } from "@/services/promptService";
@@ -38,6 +38,8 @@ export async function generateArticleDraft(articleId: string) {
       outline: outlineText,
     });
 
+    const openai = getOpenAIClient();
+    
     const response = await openai.chat.completions.create({
       model: prompt.model,
       messages: [{ role: "user", content: prompt.text }],

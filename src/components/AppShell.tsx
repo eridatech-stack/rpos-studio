@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "Publishing", icon: "📤" },
   { href: "/dashboard", label: "Analytics", icon: "📈" },
   { href: "/dashboard", label: "Revenue", icon: "💰" },
+  { href: "/developer-tools", label: "Developer Tools", icon: "🛠️" },
   { href: "/dashboard", label: "Settings", icon: "⚙️" },
 ];
 

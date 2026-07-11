@@ -4,6 +4,7 @@ import { Card, EmptyState, MetricCard, PageHeader, StatusChip } from "@/componen
 import { GenerateButton } from "@/components/GenerateButton";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
+import { ProduceKeywordButton } from "@/components/ProduceKeywordButton";
 
 
 export default async function ProductionPage() {
@@ -64,7 +65,7 @@ export default async function ProductionPage() {
                     {item.category} · {item.cluster}
                   </div>
                   <div className="mt-3">
-                    <GenerateButton keywordId={item.id} />
+                    <ProduceKeywordButton keywordId={item.id} />
                   </div>
                 </div>
               ))}

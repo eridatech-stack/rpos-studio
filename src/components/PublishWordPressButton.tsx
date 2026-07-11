@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function PublishWordPressButton({ articleId }: { articleId: string }) {
   const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
 
   async function publishDraft() {
     setLoading(true);
@@ -24,7 +27,7 @@ export function PublishWordPressButton({ articleId }: { articleId: string }) {
       return;
     }
 
-    window.location.reload();
+    router.refresh();
   }
 
   return (

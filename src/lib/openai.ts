@@ -1,9 +1,23 @@
 import OpenAI from "openai";
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("OPENAI_API_KEY is missing. Article generation will fail until it is configured.");
-}
+let client: OpenAI | null = null;
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export function getOpenAIClient(): OpenAI {
+  if (client) {
+    return client;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "OPENAI_API_KEY is missing. Add it to .env.local and restart the process."
+    );
+  }
+
+  client = new OpenAI({
+    apiKey,
+  });
+
+  return client;
+}

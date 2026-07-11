@@ -12,10 +12,29 @@ export type ToastMessage = {
 };
 
 export type ToastContextValue = {
-  success: (title: string, description?: string) => void;
-  error: (title: string, description?: string) => void;
-  info: (title: string, description?: string) => void;
-  warning: (title: string, description?: string) => void;
+  success: (
+    title: string,
+    description?: string,
+    duration?: number
+  ) => void;
+
+  error: (
+    title: string,
+    description?: string,
+    duration?: number
+  ) => void;
+
+  info: (
+    title: string,
+    description?: string,
+    duration?: number
+  ) => void;
+
+  warning: (
+    title: string,
+    description?: string,
+    duration?: number
+  ) => void;
 };
 
 export const ToastContext = createContext<ToastContextValue | null>(null);

@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { useRouter } from "next/navigation";
 
 export function ActivatePromptButton({ promptId }: { promptId: string }) {
   const [loading, setLoading] = useState(false);
 
   async function activatePrompt() {
     setLoading(true);
+    const router = useRouter();
 
     const response = await fetch("/api/prompts/activate", {
       method: "POST",
@@ -25,7 +27,7 @@ export function ActivatePromptButton({ promptId }: { promptId: string }) {
       return;
     }
 
-    window.location.reload();
+    router.refresh();
   }
 
   return (

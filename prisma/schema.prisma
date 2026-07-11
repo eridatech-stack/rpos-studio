@@ -135,6 +135,7 @@ model keywords {
   sites             sites                   @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keywords_ibfk_1")
   categories        categories?             @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_2")
   topic_clusters    topic_clusters?         @relation(fields: [cluster_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_3")
+  production_runs   production_runs[]
 
   @@unique([site_id, keyword], map: "unique_keyword")
   @@index([category_id], map: "category_id")
@@ -322,6 +323,7 @@ model production_run_steps {
 model production_runs {
   id                   String                  @id @default(dbgenerated("(uuid())")) @db.Char(36)
   site_id              String?                 @db.Char(36)
+  keyword_id           String?                 @db.Char(36)
   article_id           String?                 @db.Char(36)
   status               production_runs_status? @default(queued)
   current_step         String?                 @db.VarChar(100)
@@ -333,9 +335,11 @@ model production_runs {
   production_run_steps production_run_steps[]
   sites                sites?                  @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "production_runs_ibfk_1")
   articles             articles?               @relation(fields: [article_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "production_runs_ibfk_2")
+  keywords             keywords?               @relation(fields: [keyword_id], references: [id], onUpdate: NoAction, map: "production_runs_keyword_fk")
 
   @@index([article_id], map: "article_id")
   @@index([site_id], map: "site_id")
+  @@index([keyword_id], map: "idx_production_runs_keyword_id")
 }
 
 model production_steps {

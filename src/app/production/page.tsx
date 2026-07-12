@@ -4,8 +4,7 @@ import { Card, EmptyState, MetricCard, PageHeader, StatusChip } from "@/componen
 import { GenerateButton } from "@/components/GenerateButton";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
-import { ProduceKeywordButton } from "@/components/ProduceKeywordButton";
-
+import { BulkKeywordProduction } from "@/components/BulkKeywordProduction";
 
 export default async function ProductionPage() {
   const data = await getProductionQueue();
@@ -54,28 +53,19 @@ export default async function ProductionPage() {
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Card>
-            <h2 className="text-xl font-bold">Approved Keywords</h2>
-            <p className="mt-1 text-sm text-slate-500">Ready for article planning.</p>
+            <h2 className="text-xl font-bold">
+              Approved Keywords
+            </h2>
 
-            <div className="mt-5 space-y-3">
-              {data.approvedKeywords.map((item: any) => (
-                <div key={item.id} className="rounded-xl border bg-slate-50 p-4">
-                  <div className="font-semibold">{item.keyword}</div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {item.category} · {item.cluster}
-                  </div>
-                  <div className="mt-3">
-                    <ProduceKeywordButton keywordId={item.id} />
-                  </div>
-                </div>
-              ))}
-              {data.approvedKeywords.length === 0 && (
-              <EmptyState
-                icon="🔑"
-                title="No approved keywords"
-                description="Approve keywords first to start article planning."
+            <p className="mt-1 text-sm text-slate-500">
+              Select one or more keywords and add them
+              to asynchronous production.
+            </p>
+
+            <div className="mt-5">
+              <BulkKeywordProduction
+                keywords={data.approvedKeywords}
               />
-            )}
             </div>
           </Card>
 

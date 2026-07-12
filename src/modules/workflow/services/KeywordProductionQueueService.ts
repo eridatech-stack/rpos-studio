@@ -126,3 +126,77 @@ export async function enqueueKeywordProduction(keywordId: string) {
     connection.release();
   }
 }
+
+export type BulkQueueResult = {
+  requested: number;
+  queued: number;
+  failed: number;
+  runs: Array<{
+    keywordId: string;
+    productionRunId: string;
+  }>;
+  errors: Array<{
+    keywordId: string;
+    message: string;
+  }>;
+};
+
+export async function enqueueBulkKeywordProduction(
+  keywordIds: string[]
+): Promise<BulkQueueResult> {
+  const uniqueKeywordIds = [
+    ...new Set(
+      keywordIds.filter(
+        (keywordId) =>
+          typeof keywordId === "string" &&
+          keywordId.trim().length > 0
+      )
+    ),
+  ];
+
+  if (uniqueKeywordIds.length === 0) {
+    throw new Error("Select at least one keyword.");
+  }
+
+  // Safety limit for one browser request.
+  if (uniqueKeywordIds.length > 100) {
+    throw new Error(
+      "A maximum of 100 keywords can be queued at once."
+    );
+  }
+
+  const result: BulkQueueResult = {
+    requested: uniqueKeywordIds.length,
+    queued: 0,
+    failed: 0,
+    runs: [],
+    errors: [],
+  };
+
+  for (const keywordId of uniqueKeywordIds) {
+    try {
+      const queuedRun =
+        await enqueueKeywordProduction(keywordId);
+
+      result.queued += 1;
+
+      result.runs.push({
+        keywordId,
+        productionRunId:
+          queuedRun.productionRunId,
+      });
+    } catch (error: unknown) {
+      result.failed += 1;
+
+      result.errors.push({
+        keywordId,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to queue keyword.",
+      });
+    }
+  }
+
+  return result;
+}

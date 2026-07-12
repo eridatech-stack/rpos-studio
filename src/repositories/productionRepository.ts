@@ -44,7 +44,7 @@ export async function getProductionQueue() {
   LEFT JOIN topic_clusters tc ON tc.id = k.cluster_id
   WHERE k.status = 'approved'
   ORDER BY k.opportunity_score DESC
-  LIMIT 10
+  LIMIT 100
 `);
 
     const [outlineReadyArticles]: any = await db.query(`

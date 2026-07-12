@@ -3,7 +3,10 @@ import Link from "next/link";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
   { href: "/keywords", label: "Keywords", icon: "🔑" },
+  { href: "/keywords/import", label: "Keyword Import", icon: "📥" },
   { href: "/articles", label: "Articles", icon: "📝" },
+  { href: "/content/review", label: "Review Queue", icon: "👀" },
+  { href: "/content/publish", label: "Publish Queue", icon: "🌐"},
   { href: "/production", label: "Production", icon: "⚙️" },
   { href: "/production/jobs", label: "Jobs", icon: "📋" },
   { href: "/production/runs", label: "Runs", icon: "🏃" },

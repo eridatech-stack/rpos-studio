@@ -1,9 +1,17 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { ApproveArticleButton } from "@/components/ApproveArticleButton";
+import { DraftEditor } from "@/components/DraftEditor";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
+import { PublishApprovedArticleButton } from "@/components/PublishApprovedArticleButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
 import { getArticleById } from "@/repositories/articleRepository";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
-import { DraftEditor } from "@/components/DraftEditor";
+import {
+  Card,
+  EmptyState,
+  PageHeader,
+  StatusChip,
+} from "@/components/ui";
 
 export default async function ArticleDetailPage({
   params,
@@ -15,148 +23,371 @@ export default async function ArticleDetailPage({
 
   if (!article) {
     return (
-      <>
+      <AppShell>
         <main className="p-8">
-          <h1 className="text-2xl font-bold">Article not found</h1>
+          <PageHeader
+            title="Article not found"
+            subtitle="The requested article does not exist or may have been removed."
+          />
+
+          <Card>
+            <EmptyState
+              icon="📝"
+              title="Article not found"
+              description="Return to the Articles page and select another article."
+            />
+          </Card>
         </main>
-      </>
+      </AppShell>
     );
   }
 
   return (
     <AppShell>
       <main className="p-8">
-        <section className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="text-sm uppercase text-slate-500">
-            {article.status}
-          </div>
+        <div className="mb-6 text-sm text-slate-500">
+          <Link
+            href="/articles"
+            className="font-medium text-blue-700 hover:underline"
+          >
+            Articles
+          </Link>
 
-          <h1 className="mt-2 text-3xl font-bold">{article.title}</h1>
+          <span className="mx-2">/</span>
+          <span>{article.title}</span>
+        </div>
 
-          <p className="mt-2 text-slate-600">
-            Keyword: {article.keywords?.keyword} · Category:{" "}
-            {article.categories?.name} · Cluster:{" "}
-            {article.topic_clusters?.name}
-          </p>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            {article.status === "outline_ready" && (
-              <GenerateDraftButton articleId={article.id} />
-            )}
-
-            {article.status === "draft_ready" && (
-              <PublishWordPressButton articleId={article.id} />
-            )}
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Article Information</h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Info label="Slug" value={article.slug} />
-            <Info label="Article Type" value={article.article_type} />
-            <Info label="Search Intent" value={article.intent} />
-            <Info label="Target Words" value={article.target_word_count} />
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">SEO</h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Info label="Meta Title" value={article.meta_title} />
-            <Info label="Meta Description" value={article.meta_description} />
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Publishing</h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Info label="WordPress Post ID" value={article.wordpress_post_id} />
-
-            <div>
-              <div className="text-sm font-semibold text-slate-500">
-                WordPress Draft
-              </div>
-
-              {article.wordpress_draft_url ? (
-                <a
-                  href={article.wordpress_draft_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-700 hover:underline"
-                >
-                  Open WordPress Draft
-                </a>
-              ) : (
-                <div className="text-slate-400">Not created yet</div>
-              )}
+        <PageHeader
+          title={article.title}
+          subtitle={buildSubtitle(article)}
+          actions={
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusChip status={article.status} />
+              <ArticleActions article={article} />
             </div>
+          }
+        />
 
-            <Info label="Published URL" value={article.published_url} />
-            <Info label="Publish Date" value={article.publish_date} />
-          </div>
-        </section>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+          <div className="space-y-6">
+            {article.draft_markdown ? (
+              <DraftEditor
+                articleId={article.id}
+                initialMarkdown={article.draft_markdown}
+              />
+            ) : (
+              <Card>
+                <EmptyState
+                  icon="📝"
+                  title="No draft generated"
+                  description="The article does not currently contain Markdown draft content."
+                />
+              </Card>
+            )}
 
-        <section className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Outline Sections</h2>
+            <Card>
+              <h2 className="text-xl font-bold">Outline Sections</h2>
 
-          <div className="mt-4 space-y-4">
-            {article.article_sections?.map((section: any) => (
-              <div key={section.id} className="rounded-lg border p-4">
-                <div className="text-sm text-slate-500">
-                  Section {section.section_order} · {section.status}
-                </div>
+              <div className="mt-5 space-y-4">
+                {article.article_sections?.map((section: any) => (
+                  <div
+                    key={section.id}
+                    className="rounded-xl border bg-slate-50 p-4"
+                  >
+                    <div className="text-sm text-slate-500">
+                      Section {section.section_order} ·{" "}
+                      {friendlyValue(section.status)}
+                    </div>
 
-                <h3 className="mt-1 text-lg font-semibold">
-                  {section.heading}
-                </h3>
+                    <h3 className="mt-1 text-lg font-semibold">
+                      {section.heading}
+                    </h3>
 
-                <p className="mt-2 text-slate-600">{section.purpose}</p>
+                    {section.purpose && (
+                      <p className="mt-2 text-slate-600">
+                        {section.purpose}
+                      </p>
+                    )}
+
+                    <div className="mt-2 text-xs text-slate-400">
+                      Target words: {section.target_words ?? "—"}
+                    </div>
+                  </div>
+                ))}
+
+                {!article.article_sections?.length && (
+                  <EmptyState
+                    icon="🧩"
+                    title="No outline sections"
+                    description="Outline sections have not been saved for this article."
+                  />
+                )}
               </div>
-            ))}
-          </div>
-        </section>
+            </Card>
 
-        <section className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">FAQs</h2>
+            <Card>
+              <h2 className="text-xl font-bold">FAQs</h2>
 
-          <div className="mt-4 space-y-4">
-            {article.article_faqs?.map((faq: any) => (
-              <div key={faq.id} className="rounded-lg border p-4">
-                <div className="text-sm text-slate-500">
-                  FAQ {faq.faq_order} · {faq.status}
-                </div>
+              <div className="mt-5 space-y-4">
+                {article.article_faqs?.map((faq: any) => (
+                  <div
+                    key={faq.id}
+                    className="rounded-xl border bg-slate-50 p-4"
+                  >
+                    <div className="text-sm text-slate-500">
+                      FAQ {faq.faq_order} · {friendlyValue(faq.status)}
+                    </div>
 
-                <h3 className="mt-1 text-lg font-semibold">
-                  {faq.question}
-                </h3>
+                    <h3 className="mt-1 text-lg font-semibold">
+                      {faq.question}
+                    </h3>
 
-                <p className="mt-2 text-slate-600">{faq.answer_goal}</p>
+                    {faq.answer_goal && (
+                      <p className="mt-2 text-slate-600">
+                        {faq.answer_goal}
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+                {!article.article_faqs?.length && (
+                  <EmptyState
+                    icon="❓"
+                    title="No FAQs"
+                    description="No FAQ entries have been created for this article."
+                  />
+                )}
               </div>
-            ))}
+            </Card>
           </div>
-        </section>
 
-        {article.draft_markdown && (
-          <DraftEditor
-            articleId={article.id}
-            initialMarkdown={article.draft_markdown}
-          />
-        )}
-                
+          <aside className="space-y-6">
+            <Card>
+              <h2 className="text-xl font-bold">Article Information</h2>
+
+              <div className="mt-5 space-y-4">
+                <Info label="Slug" value={article.slug} />
+                <Info
+                  label="Article Type"
+                  value={friendlyValue(article.article_type)}
+                />
+                <Info
+                  label="Search Intent"
+                  value={friendlyValue(article.intent)}
+                />
+                <Info
+                  label="Target Words"
+                  value={article.target_word_count}
+                />
+                <Info
+                  label="Keyword"
+                  value={article.keywords?.keyword}
+                />
+                <Info
+                  label="Category"
+                  value={article.categories?.name}
+                />
+                <Info
+                  label="Cluster"
+                  value={article.topic_clusters?.name}
+                />
+              </div>
+            </Card>
+
+            <Card>
+              <h2 className="text-xl font-bold">SEO</h2>
+
+              <div className="mt-5 space-y-4">
+                <Info
+                  label="Meta Title"
+                  value={article.meta_title}
+                />
+
+                <Info
+                  label="Meta Description"
+                  value={article.meta_description}
+                />
+              </div>
+            </Card>
+
+            <Card>
+              <h2 className="text-xl font-bold">Publishing</h2>
+
+              <div className="mt-5 space-y-4">
+                <Info
+                  label="WordPress Post ID"
+                  value={article.wordpress_post_id}
+                />
+
+                <ExternalLinkInfo
+                  label="WordPress Draft"
+                  href={article.wordpress_draft_url}
+                  emptyText="Not created yet"
+                  linkText="Open WordPress Draft"
+                />
+
+                <ExternalLinkInfo
+                  label="Published Article"
+                  href={article.published_url}
+                  emptyText="Not published yet"
+                  linkText="Open Live Article"
+                />
+
+                <Info
+                  label="Publish Date"
+                  value={formatDate(article.publish_date)}
+                />
+              </div>
+            </Card>
+          </aside>
+        </div>
       </main>
     </AppShell>
   );
 }
 
-function Info({ label, value }: { label: string; value: any }) {
+function ArticleActions({
+  article,
+}: {
+  article: any;
+}) {
+  if (article.status === "outline_ready") {
+    return (
+      <GenerateDraftButton articleId={article.id} />
+    );
+  }
+
+  if (article.status === "draft_ready") {
+    return (
+      <PublishWordPressButton articleId={article.id} />
+    );
+  }
+
+  if (
+    article.status === "wordpress_draft" ||
+    article.status === "human_review"
+  ) {
+    return (
+      <ApproveArticleButton articleId={article.id} />
+    );
+  }
+
+  if (article.status === "approved") {
+    return (
+      <PublishApprovedArticleButton
+        articleId={article.id}
+      />
+    );
+  }
+
+  if (article.status === "published") {
+    return article.published_url ? (
+      <a
+        href={article.published_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 font-semibold text-white transition hover:bg-green-700"
+      >
+        🌐 Open Live Article
+      </a>
+    ) : null;
+  }
+
+  return null;
+}
+
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  const hasValue =
+    value !== null &&
+    value !== undefined &&
+    value !== "";
+
   return (
     <div>
-      <div className="text-sm font-semibold text-slate-500">{label}</div>
-      <div>{value || <span className="text-slate-400">—</span>}</div>
+      <div className="text-sm font-semibold text-slate-500">
+        {label}
+      </div>
+
+      <div className="mt-1 break-words text-slate-800">
+        {hasValue ? String(value) : "—"}
+      </div>
     </div>
   );
+}
+
+function ExternalLinkInfo({
+  label,
+  href,
+  linkText,
+  emptyText,
+}: {
+  label: string;
+  href?: string | null;
+  linkText: string;
+  emptyText: string;
+}) {
+  return (
+    <div>
+      <div className="text-sm font-semibold text-slate-500">
+        {label}
+      </div>
+
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-block break-all font-medium text-blue-700 hover:underline"
+        >
+          {linkText}
+        </a>
+      ) : (
+        <div className="mt-1 text-slate-400">
+          {emptyText}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildSubtitle(article: any) {
+  const parts = [
+    article.keywords?.keyword
+      ? `Keyword: ${article.keywords.keyword}`
+      : null,
+    article.categories?.name
+      ? `Category: ${article.categories.name}`
+      : null,
+    article.topic_clusters?.name
+      ? `Cluster: ${article.topic_clusters.name}`
+      : null,
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function friendlyValue(
+  value: string | null | undefined
+) {
+  return value
+    ? value.replaceAll("_", " ")
+    : "—";
+}
+
+function formatDate(value: unknown) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(String(value));
+
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString();
 }

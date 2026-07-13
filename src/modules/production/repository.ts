@@ -44,3 +44,26 @@ export async function getProductionRunSteps(runId: string) {
 
   return rows;
 }
+
+export async function getProductionRunEvents(
+  runId: string
+) {
+  const [rows]: any = await db.query(
+    `
+    SELECT
+      id,
+      step_code,
+      event_type,
+      status,
+      message,
+      details_json,
+      created_at
+    FROM production_run_events
+    WHERE production_run_id = ?
+    ORDER BY created_at ASC, id ASC
+    `,
+    [runId]
+  );
+
+  return rows;
+}

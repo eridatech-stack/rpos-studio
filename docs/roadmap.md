@@ -1,61 +1,58 @@
-# Roadmap
+# RPOS Studio Roadmap
 
-## ✅ Sprint 1
+## Phase 1 — Operational completion
 
-Database
+- [x] Keyword import
+- [x] Keyword approval
+- [x] Bulk production queue
+- [x] Background production worker
+- [x] Outline generation
+- [x] Draft generation
+- [x] WordPress draft creation
+- [x] Editorial Review Queue
+- [x] Publish Queue
+- [x] Manual publication
+- [x] Production event table and worker logging foundation
+- [ ] Production timeline UI
+- [ ] Retry failed runs
+- [ ] Auto-refresh for operations pages
 
-Keywords
+## Phase 2 — Featured images
 
-Articles
+- [ ] Generate featured-image prompt
+- [ ] Generate image
+- [ ] persist image metadata
+- [ ] upload image to WordPress Media
+- [ ] save media ID
+- [ ] set featured image on WordPress post
 
-Outline Generation
+## Phase 3 — n8n automation
 
----
+- [ ] protected automation authentication
+- [ ] queue-approved-keywords endpoint
+- [ ] per-site queue limit
+- [ ] scheduled n8n workflow
+- [ ] production summary endpoint
+- [ ] success/failure notifications
+- [ ] operating runbook
 
-## ✅ Sprint 2
+## Phase 4 — Quality controls
 
-Draft Generation
+- [ ] SEO review
+- [ ] readability checks
+- [ ] internal-link suggestions
+- [ ] duplicate-content checks
+- [ ] factual review workflow
+- [ ] image alt-text review
+- [ ] automated publication eligibility rules
 
-Markdown Preview
+## Phase 5 — Scale and analytics
 
-WordPress Draft
-
----
-
-## ✅ Sprint 3
-
-Dashboard
-
-Production Center
-
-Prompt Studio
-
-Design System
-
----
-
-## 🚧 Sprint 4
-
-Workflow Engine
-
-AI Engine
-
-Production Runs
-
-Prompt Versioning
-
----
-
-## Future
-
-Analytics
-
-Revenue
-
-Scheduler
-
-Images
-
-Social Media
-
-Multi-site
+- [ ] worker heartbeat
+- [ ] multiple-worker visibility
+- [ ] run duration metrics
+- [ ] AI token/cost tracking
+- [ ] prompt performance analytics
+- [ ] Google Search Console
+- [ ] Google Analytics
+- [ ] AdSense revenue tracking

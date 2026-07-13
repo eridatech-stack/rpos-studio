@@ -4,12 +4,25 @@ import { db } from "@/lib/db";
 import { generateArticlePlan } from "@/services/articlePlanningService";
 import { generateArticleDraft } from "@/services/articleDraftService";
 import { publishArticleToWordPressDraft } from "@/services/wordpressService";
+import { addProductionEvent } from "@/modules/production/eventRepository";
 
 type ClaimedRun = {
   id: string;
   keyword_id: string;
   article_id: string | null;
 };
+
+type ProductionRunStatus =
+  | "running"
+  | "completed"
+  | "failed";
+
+type ProductionStepStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 const workerId = `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
 
@@ -27,7 +40,7 @@ async function claimNextRun(): Promise<ClaimedRun | null> {
         article_id
       FROM production_runs
       WHERE status = 'queued'
-          AND keyword_id IS NOT NULL
+        AND keyword_id IS NOT NULL
       ORDER BY created_at ASC
       LIMIT 1
       FOR UPDATE SKIP LOCKED
@@ -70,7 +83,7 @@ async function claimNextRun(): Promise<ClaimedRun | null> {
 async function updateRun(
   runId: string,
   input: {
-    status?: "running" | "completed" | "failed";
+    status?: ProductionRunStatus;
     currentStep?: string | null;
     progress?: number;
     articleId?: string;
@@ -109,7 +122,7 @@ async function updateRun(
 async function updateStep(
   runId: string,
   stepCode: string,
-  status: "queued" | "running" | "completed" | "failed" | "skipped",
+  status: ProductionStepStatus,
   errorMessage: string | null = null
 ) {
   await db.query(
@@ -119,12 +132,14 @@ async function updateStep(
       status = ?,
       started_at =
         CASE
-          WHEN ? = 'running' THEN COALESCE(started_at, NOW())
+          WHEN ? = 'running'
+            THEN COALESCE(started_at, NOW())
           ELSE started_at
         END,
       finished_at =
         CASE
-          WHEN ? IN ('completed', 'failed', 'skipped') THEN NOW()
+          WHEN ? IN ('completed', 'failed', 'skipped')
+            THEN NOW()
           ELSE finished_at
         END,
       error_message = ?
@@ -142,7 +157,10 @@ async function updateStep(
   );
 }
 
-async function failRunningStep(runId: string, message: string) {
+async function failRunningStep(
+  runId: string,
+  message: string
+) {
   await db.query(
     `
     UPDATE production_run_steps
@@ -159,49 +177,166 @@ async function failRunningStep(runId: string, message: string) {
 
 async function processRun(run: ClaimedRun) {
   if (!run.keyword_id) {
-    throw new Error("Queued production run has no keyword_id.");
+    throw new Error(
+      "Queued production run has no keyword_id."
+    );
   }
 
   try {
-    // Step 1: Outline and article creation
+    /*
+     * Step 1: Generate outline and create article.
+     */
     await updateRun(run.id, {
       status: "running",
       currentStep: "outline",
       progress: 10,
     });
 
-    await updateStep(run.id, "outline", "running");
+    await updateStep(
+      run.id,
+      "outline",
+      "running"
+    );
 
-    const articleId = await generateArticlePlan(run.keyword_id);
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "outline",
+      eventType: "step_started",
+      status: "running",
+      message: "Outline generation started.",
+      details: {
+        keywordId: run.keyword_id,
+      },
+    });
 
-    await updateStep(run.id, "outline", "completed");
+    const articleId =
+      await generateArticlePlan(
+        run.keyword_id
+      );
 
+    await updateStep(
+      run.id,
+      "outline",
+      "completed"
+    );
+
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "outline",
+      eventType: "step_completed",
+      status: "completed",
+      message:
+        "Outline and article plan generated successfully.",
+      details: {
+        keywordId: run.keyword_id,
+        articleId,
+      },
+    });
+
+    /*
+     * Step 2: Generate full article draft.
+     */
     await updateRun(run.id, {
       currentStep: "draft",
       progress: 40,
       articleId,
     });
 
-    // Step 2: Draft generation
-    await updateStep(run.id, "draft", "running");
+    await updateStep(
+      run.id,
+      "draft",
+      "running"
+    );
+
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "draft",
+      eventType: "step_started",
+      status: "running",
+      message:
+        "Article draft generation started.",
+      details: {
+        articleId,
+      },
+    });
 
     await generateArticleDraft(articleId);
 
-    await updateStep(run.id, "draft", "completed");
+    await updateStep(
+      run.id,
+      "draft",
+      "completed"
+    );
 
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "draft",
+      eventType: "step_completed",
+      status: "completed",
+      message:
+        "Article draft generated successfully.",
+      details: {
+        articleId,
+      },
+    });
+
+    /*
+     * Step 3: Create WordPress draft.
+     */
     await updateRun(run.id, {
       currentStep: "wordpress_draft",
       progress: 75,
       articleId,
     });
 
-    // Step 3: WordPress draft creation
-    await updateStep(run.id, "wordpress_draft", "running");
+    await updateStep(
+      run.id,
+      "wordpress_draft",
+      "running"
+    );
 
-    await publishArticleToWordPressDraft(articleId);
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "wordpress_draft",
+      eventType: "step_started",
+      status: "running",
+      message:
+        "WordPress draft creation started.",
+      details: {
+        articleId,
+      },
+    });
 
-    await updateStep(run.id, "wordpress_draft", "completed");
+    const wordpressResult =
+      await publishArticleToWordPressDraft(
+        articleId
+      );
 
+    await updateStep(
+      run.id,
+      "wordpress_draft",
+      "completed"
+    );
+
+    await addProductionEvent({
+      productionRunId: run.id,
+      stepCode: "wordpress_draft",
+      eventType: "step_completed",
+      status: "completed",
+      message:
+        "WordPress draft created successfully.",
+      details: {
+        articleId,
+        wordpressPostId:
+          wordpressResult.wordpressPostId,
+        wordpressDraftUrl:
+          wordpressResult.wordpressDraftUrl,
+      },
+    });
+
+    /*
+     * Complete the full production run.
+     */
     await updateRun(run.id, {
       status: "completed",
       currentStep: null,
@@ -209,6 +344,21 @@ async function processRun(run: ClaimedRun) {
       articleId,
       errorMessage: null,
       finished: true,
+    });
+
+    await addProductionEvent({
+      productionRunId: run.id,
+      eventType: "run_completed",
+      status: "completed",
+      message:
+        "Production workflow completed successfully.",
+      details: {
+        articleId,
+        wordpressPostId:
+          wordpressResult.wordpressPostId,
+        wordpressDraftUrl:
+          wordpressResult.wordpressDraftUrl,
+      },
     });
 
     console.log(
@@ -220,12 +370,27 @@ async function processRun(run: ClaimedRun) {
         ? error.message
         : "Production processing failed.";
 
-    await failRunningStep(run.id, message);
+    await failRunningStep(
+      run.id,
+      message
+    );
 
     await updateRun(run.id, {
       status: "failed",
       errorMessage: message,
       finished: true,
+    });
+
+    await addProductionEvent({
+      productionRunId: run.id,
+      eventType: "run_failed",
+      status: "failed",
+      message,
+      details: {
+        keywordId: run.keyword_id,
+        articleId: run.article_id,
+        workerId,
+      },
     });
 
     console.error(
@@ -244,6 +409,18 @@ export async function processNextQueuedRun() {
   console.log(
     `[production-worker] Claimed run ${run.id} using ${workerId}`
   );
+
+  await addProductionEvent({
+    productionRunId: run.id,
+    eventType: "worker_claimed",
+    status: "running",
+    message:
+      "Production worker claimed the run.",
+    details: {
+      workerId,
+      keywordId: run.keyword_id,
+    },
+  });
 
   await processRun(run);
 

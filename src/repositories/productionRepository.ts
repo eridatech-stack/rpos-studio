@@ -99,3 +99,27 @@ export async function getProductionQueue() {
     failedRuns,
   };
 }
+
+export async function getAllJobs() {
+  const [jobs]: any = await db.query(`
+    SELECT
+      j.id,
+      j.job_type,
+      j.status,
+      j.error_message,
+      j.started_at,
+      j.finished_at,
+      j.created_at,
+      a.title AS article_title,
+      k.keyword
+    FROM jobs j
+    LEFT JOIN articles a
+      ON a.id = j.related_article_id
+    LEFT JOIN keywords k
+      ON k.id = j.related_keyword_id
+    ORDER BY j.created_at DESC
+    LIMIT 100
+  `);
+
+  return jobs;
+}

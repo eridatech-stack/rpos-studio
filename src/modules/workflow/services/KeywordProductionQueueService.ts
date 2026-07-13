@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
+import { addProductionEvent } from "@/modules/production/eventRepository";
 
 const keywordProductionSteps = [
   {
@@ -114,6 +115,16 @@ export async function enqueueKeywordProduction(keywordId: string) {
     }
 
     await connection.commit();
+
+    await addProductionEvent({
+      productionRunId,
+      eventType: "run_queued",
+      status: "queued",
+      message: "Production run added to the worker queue.",
+      details: {
+        keywordId: keyword.id,
+      },
+    });
 
     return {
       productionRunId,

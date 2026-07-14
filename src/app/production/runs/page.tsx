@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { getProductionRuns } from "@/modules/production/repository";
 import {
   Card,
@@ -27,6 +28,7 @@ export default async function ProductionRunsPage() {
         <PageHeader
           title="Production Runs"
           subtitle="Track full article production workflows from start to finish."
+          actions={<AutoRefresh />}
         />
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-4">

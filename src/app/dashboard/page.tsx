@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { SiteSelector } from "@/components/SiteSelector";
 import {
   getDashboardStats,
@@ -61,10 +62,14 @@ export default async function DashboardPage({
           title="Operations Dashboard"
           subtitle="Monitor production, editorial review, publishing, and content output."
           actions={
-            <SiteSelector
-              sites={sites}
-              selectedSiteId={selectedSite.id}
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <AutoRefresh />
+
+              <SiteSelector
+                sites={sites}
+                selectedSiteId={selectedSite.id}
+              />
+            </div>
           }
         />
 

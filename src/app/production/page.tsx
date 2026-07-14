@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { BulkKeywordProduction } from "@/components/BulkKeywordProduction";
 import { getProductionQueue } from "@/repositories/productionRepository";
 import {
@@ -21,12 +22,16 @@ export default async function ProductionPage() {
           title="Production Center"
           subtitle="Queue approved keywords and monitor automated article production."
           actions={
-            <Link
-              href="/production/runs"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100"
-            >
-              View All Runs
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <AutoRefresh />
+
+              <Link
+                href="/production/runs"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                View All Runs
+              </Link>
+            </div>
           }
         />
 

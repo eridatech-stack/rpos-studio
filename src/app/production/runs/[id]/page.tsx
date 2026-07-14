@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { RetryProductionRunButton } from "@/components/RetryProductionRunButton";
 import {
   Card,
@@ -59,6 +60,8 @@ export default async function ProductionRunDetailPage({
           subtitle="Worker timeline, queue state, and step history."
           actions={
             <div className="flex flex-wrap items-center gap-3">
+              <AutoRefresh />
+
               {run.status === "failed" && (
                 <RetryProductionRunButton productionRunId={run.id} />
               )}

@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       success: true,
       siteId,
       summary,
+      notification: buildNotification(summary),
     });
   } catch (error: unknown) {
     const message =
@@ -43,4 +44,38 @@ export async function POST(request: Request) {
       }
     );
   }
+}
+
+function buildNotification(summary: any) {
+  const siteName =
+    summary.site?.name || summary.site?.domain || "Selected site";
+  const failureCount = summary.production.failed;
+  const reviewCount = summary.editorial.reviewRequired;
+  const readyCount = summary.editorial.readyToPublish;
+
+  const status =
+    failureCount > 0
+      ? "attention_required"
+      : summary.production.running > 0 || summary.production.queued > 0
+        ? "in_progress"
+        : "stable";
+
+  const lines = [
+    `${siteName} production summary`,
+    `Queued: ${summary.production.queued}`,
+    `Running: ${summary.production.running}`,
+    `Completed: ${summary.production.completed}`,
+    `Failed: ${failureCount}`,
+    `Needs review: ${reviewCount}`,
+    `Ready to publish: ${readyCount}`,
+  ];
+
+  return {
+    status,
+    title:
+      status === "attention_required"
+        ? `${siteName}: production needs attention`
+        : `${siteName}: production summary`,
+    text: lines.join("\n"),
+  };
 }

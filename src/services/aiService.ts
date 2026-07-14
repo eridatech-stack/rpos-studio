@@ -1,6 +1,17 @@
 import { getOpenAIClient } from "@/lib/openai";
+import { buildTextAiUsage } from "@/services/aiUsage";
 
 export async function generateJsonWithAI(input: {
+  prompt: string;
+  model: string;
+  temperature: number;
+}) {
+  const result = await generateJsonWithAIResult(input);
+
+  return result.data;
+}
+
+export async function generateJsonWithAIResult(input: {
   prompt: string;
   model: string;
   temperature: number;
@@ -30,8 +41,16 @@ export async function generateJsonWithAI(input: {
     );
   }
 
+  const aiUsage = buildTextAiUsage({
+    model: input.model,
+    usage: response.usage,
+  });
+
   try {
-    return JSON.parse(content.slice(first, last + 1));
+    return {
+      data: JSON.parse(content.slice(first, last + 1)),
+      aiUsage,
+    };
   } catch {
     throw new Error(
       "AI response contained malformed JSON."

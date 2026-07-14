@@ -15,7 +15,7 @@
 - [x] Production event table and worker logging foundation
 - [x] Production timeline UI
 - [x] Retry failed runs
-- [ ] Auto-refresh for operations pages
+- [x] Auto-refresh for operations pages
 
 ## Phase 2 — Featured images
 
@@ -33,13 +33,16 @@
 - [x] protected automation authentication
 - [x] queue-approved-keywords endpoint
 - [x] per-site queue limit
+- [x] active and daily automation queue limits
 - [ ] scheduled n8n workflow
 - [x] production summary endpoint
-- [ ] success/failure notifications
-- [ ] operating runbook
+- [x] notification-ready summary response
+- [x] operating runbook
 
 ## Phase 4 — Quality controls
 
+- [x] Manual quality checklist before publishing approval
+- [x] Store quality review notes locally
 - [ ] SEO review
 - [ ] readability checks
 - [ ] internal-link suggestions
@@ -50,10 +53,10 @@
 
 ## Phase 5 — Scale and analytics
 
-- [ ] worker heartbeat
-- [ ] multiple-worker visibility
-- [ ] run duration metrics
-- [ ] AI token/cost tracking
+- [x] worker activity visibility from run locks and events
+- [x] multiple-worker visibility
+- [x] run duration metrics
+- [x] AI token/cost tracking
 - [ ] prompt performance analytics
 - [ ] Google Search Console
 - [ ] Google Analytics

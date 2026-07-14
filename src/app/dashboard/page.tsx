@@ -134,6 +134,124 @@ export default async function DashboardPage({
 
         <section className="mt-8">
           <h2 className="text-xl font-bold">
+            Production Health
+          </h2>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="Active Workers"
+              value={stats.productionHealth.activeWorkers}
+              subtitle="Workers with running runs"
+              icon="⚙️"
+              color="blue"
+            />
+
+            <MetricCard
+              title="Stale Runs"
+              value={stats.productionHealth.staleRunning}
+              subtitle="Running longer than 30 minutes"
+              icon="⏱️"
+              color={
+                stats.productionHealth.staleRunning > 0
+                  ? "red"
+                  : "green"
+              }
+            />
+
+            <MetricCard
+              title="Avg Duration"
+              value={formatDuration(
+                stats.productionHealth.averageCompletedSeconds
+              )}
+              subtitle="Completed production runs"
+              icon="📈"
+              color="purple"
+            />
+
+            <MetricCard
+              title="Last Activity"
+              value={formatRelativeTime(
+                stats.productionHealth.lastActivityAt
+              )}
+              subtitle="Most recent worker activity"
+              icon="🕒"
+              color="orange"
+            />
+          </div>
+
+          {stats.productionHealth.recentWorkers.length > 0 && (
+            <Card className="mt-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-bold">Recent Workers</h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Worker IDs seen on the selected site.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {stats.productionHealth.recentWorkers.map(
+                  (worker: any) => (
+                    <div
+                      key={worker.worker_id}
+                      className="rounded-xl border bg-slate-50 p-4"
+                    >
+                      <div className="truncate font-mono text-xs text-slate-600">
+                        {worker.worker_id}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                        <span className="text-slate-500">
+                          Running
+                        </span>
+
+                        <span className="font-bold">
+                          {Number(worker.running_runs ?? 0)}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-xs text-slate-400">
+                        Last active{" "}
+                        {formatRelativeTime(
+                          worker.last_activity_at
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </Card>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-bold">
+            AI Cost
+          </h2>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="This Month"
+              value={formatCurrency(stats.aiCost.currentMonth)}
+              subtitle="Estimated OpenAI text generation cost"
+              icon="💵"
+              color="green"
+            />
+
+            <MetricCard
+              title="Total Cost"
+              value={formatCurrency(stats.aiCost.total)}
+              subtitle="Estimated lifetime text generation cost"
+              icon="📊"
+              color="purple"
+            />
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-bold">
             Editorial Pipeline
           </h2>
 
@@ -210,6 +328,11 @@ export default async function DashboardPage({
 
                       <div className="mt-1 text-sm text-slate-500">
                         {friendlyStep(run.current_step)}
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-400">
+                        Duration:{" "}
+                        {formatDuration(run.duration_seconds)}
                       </div>
                     </div>
 
@@ -403,4 +526,68 @@ function friendlyStep(step: string | null) {
   return step
     ? labels[step] || step.replaceAll("_", " ")
     : "Waiting";
+}
+
+function formatDuration(seconds: number | string | null | undefined) {
+  if (seconds === null || seconds === undefined || seconds === "") {
+    return "-";
+  }
+
+  const totalSeconds = Number(seconds);
+
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return "-";
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = Math.round(totalSeconds % 60);
+
+  if (minutes < 1) {
+    return `${remainingSeconds}s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours < 1) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+function formatRelativeTime(value: Date | string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+
+  const timestamp = new Date(value).getTime();
+  const diffSeconds = Math.max(
+    0,
+    Math.round((Date.now() - timestamp) / 1000)
+  );
+
+  if (diffSeconds < 60) {
+    return "just now";
+  }
+
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)}m ago`;
+  }
+
+  if (diffSeconds < 86400) {
+    return `${Math.floor(diffSeconds / 3600)}h ago`;
+  }
+
+  return new Date(value).toLocaleDateString();
+}
+
+function formatCurrency(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+
+  if (!Number.isFinite(amount)) {
+    return "$0.000000";
+  }
+
+  return `$${amount.toFixed(6)}`;
 }

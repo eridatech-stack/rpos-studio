@@ -23,16 +23,18 @@ export function MetricCard({
 }) {
   return (
     <div className="rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_3.5rem] items-start gap-4">
+        <div className="min-w-0">
           <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             {title}
           </div>
-          <div className="mt-3 text-4xl font-black">{value ?? 0}</div>
+          <div className="mt-3 break-words text-[clamp(1.85rem,2.6vw,2.25rem)] font-black leading-tight">
+            {value ?? 0}
+          </div>
           <div className="mt-3 text-sm text-slate-500">{subtitle}</div>
         </div>
 
-        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border text-2xl ${colors[color]}`}>
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border text-2xl ${colors[color]}`}>
           {icon}
         </div>
       </div>

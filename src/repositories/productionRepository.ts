@@ -106,6 +106,7 @@ export async function getAllJobs() {
       j.id,
       j.job_type,
       j.status,
+      j.output_data,
       j.error_message,
       j.started_at,
       j.finished_at,

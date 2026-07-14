@@ -84,6 +84,9 @@ export default async function ProductionRunDetailPage({
 
               <div className="text-right text-sm text-slate-500">
                 <div>Attempts: {run.attempt_count ?? 0}</div>
+                <div className="mt-1">
+                  Duration: {formatDuration(run.duration_seconds)}
+                </div>
                 {run.worker_id && (
                   <div className="mt-1 max-w-xs truncate">
                     Worker: {run.worker_id}
@@ -117,7 +120,16 @@ export default async function ProductionRunDetailPage({
               <Detail label="Article ID" value={run.article_id} mono />
               <Detail label="Created" value={formatDate(run.created_at)} />
               <Detail label="Started" value={formatDate(run.started_at)} />
+              <Detail label="Locked" value={formatDate(run.locked_at)} />
               <Detail label="Finished" value={formatDate(run.finished_at)} />
+              <Detail
+                label="Last Activity"
+                value={formatDate(run.last_activity_at)}
+              />
+              <Detail
+                label="Duration"
+                value={formatDuration(run.duration_seconds)}
+              />
             </dl>
           </Card>
         </section>
@@ -186,6 +198,7 @@ function StepRow({ step }: { step: ProductionRunStep }) {
       <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
         <div>Started: {formatDate(step.started_at)}</div>
         <div>Finished: {formatDate(step.finished_at)}</div>
+        <div>Duration: {formatDuration(step.duration_seconds)}</div>
       </div>
 
       {step.error_message && (
@@ -285,6 +298,34 @@ function friendlyEventType(eventType: string) {
 
 function formatDate(value: Date | string | null | undefined) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function formatDuration(seconds: number | string | null | undefined) {
+  if (seconds === null || seconds === undefined || seconds === "") {
+    return "-";
+  }
+
+  const totalSeconds = Number(seconds);
+
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return "-";
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = Math.round(totalSeconds % 60);
+
+  if (minutes < 1) {
+    return `${remainingSeconds}s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours < 1) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  return `${hours}h ${remainingMinutes}m`;
 }
 
 function displayValue(value: unknown) {

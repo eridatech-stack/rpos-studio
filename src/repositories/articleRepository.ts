@@ -19,25 +19,18 @@ export async function createArticleFromPlan(input: {
   externalSources: string;
   affiliateOpportunities: string;
 }) {
-  const article = await prisma.articles.create({
-    data: {
-      site_id: input.siteId,
-      category_id: input.categoryId,
-      cluster_id: input.clusterId,
-      primary_keyword_id: input.keywordId,
-      title: input.title,
-      slug: input.slug,
-      article_type: input.articleType as any,
-      intent: input.intent as any,
-      status: "outline_ready",
-      target_word_count: input.targetWordCount,
-      outline: JSON.stringify({ outline: input.outline, faq: input.faqs }, null, 2),
-      meta_title: input.metaTitle,
-      meta_description: input.metaDescription,
-      internal_links: input.internalLinks,
-      external_sources: input.externalSources,
-      affiliate_opportunities: input.affiliateOpportunities,
-    },
+  const baseSlug = normalizeArticleSlug(
+    input.slug || input.title
+  );
+  const initialSlug = await resolveUniqueArticleSlug(
+    input.siteId,
+    baseSlug
+  );
+
+  const article = await createArticleWithSlugRetry({
+    input,
+    baseSlug,
+    initialSlug,
   });
 
   for (const [index, section] of input.outline.entries()) {
@@ -76,6 +69,116 @@ export async function createArticleFromPlan(input: {
   }
 
   return article.id;
+}
+
+async function createArticleWithSlugRetry({
+  input,
+  baseSlug,
+  initialSlug,
+}: {
+  input: Parameters<typeof createArticleFromPlan>[0];
+  baseSlug: string;
+  initialSlug: string;
+}) {
+  let slug = initialSlug;
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      return await prisma.articles.create({
+        data: {
+          site_id: input.siteId,
+          category_id: input.categoryId,
+          cluster_id: input.clusterId,
+          primary_keyword_id: input.keywordId,
+          title: input.title,
+          slug,
+          article_type: input.articleType as any,
+          intent: input.intent as any,
+          status: "outline_ready",
+          target_word_count: input.targetWordCount,
+          outline: JSON.stringify(
+            {
+              outline: input.outline,
+              faq: input.faqs,
+            },
+            null,
+            2
+          ),
+          meta_title: input.metaTitle,
+          meta_description: input.metaDescription,
+          internal_links: input.internalLinks,
+          external_sources: input.externalSources,
+          affiliate_opportunities: input.affiliateOpportunities,
+        },
+      });
+    } catch (error) {
+      if (!isArticleSlugUniqueError(error)) {
+        throw error;
+      }
+
+      slug = await resolveUniqueArticleSlug(
+        input.siteId,
+        appendSlugSuffix(baseSlug, attempt + 2)
+      );
+    }
+  }
+
+  throw new Error(
+    "Unable to create article with a unique slug after 20 attempts."
+  );
+}
+
+async function resolveUniqueArticleSlug(
+  siteId: string,
+  requestedSlug: string
+) {
+  const baseSlug = normalizeArticleSlug(requestedSlug);
+  let candidate = baseSlug;
+  let suffix = 2;
+
+  while (
+    await prisma.articles.findFirst({
+      where: {
+        site_id: siteId,
+        slug: candidate,
+      },
+      select: {
+        id: true,
+      },
+    })
+  ) {
+    const suffixText = `-${suffix}`;
+    candidate = `${baseSlug.slice(0, 255 - suffixText.length)}${suffixText}`;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+function normalizeArticleSlug(value: string) {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 255);
+
+  return slug || "article";
+}
+
+function appendSlugSuffix(baseSlug: string, suffix: number) {
+  const suffixText = `-${suffix}`;
+
+  return `${baseSlug.slice(0, 255 - suffixText.length)}${suffixText}`;
+}
+
+function isArticleSlugUniqueError(error: unknown) {
+  const prismaError = error as {
+    code?: string;
+  };
+
+  return prismaError.code === "P2002";
 }
 
 export async function getArticles() {

@@ -2,7 +2,7 @@ import { getKeywordById, markKeywordPlanned } from "@/repositories/keywordReposi
 import { createArticleFromPlan } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { renderPrompt } from "@/services/promptService";
-import { generateJsonWithAI } from "@/services/aiService";
+import { generateJsonWithAIResult } from "@/services/aiService";
 
 function safeSlug(value: string) {
   return value
@@ -47,7 +47,7 @@ export async function generateArticlePlan(keywordId: string) {
       article_type: keyword.article_type ?? "cluster",
     });
 
-    const plan = await generateJsonWithAI({
+    const { data: plan, aiUsage } = await generateJsonWithAIResult({
       prompt: prompt.text,
       model: prompt.model,
       temperature: prompt.temperature,
@@ -78,6 +78,7 @@ export async function generateArticlePlan(keywordId: string) {
       articleId,
       title: plan.title,
       slug: plan.slug,
+      aiUsage,
     });
 
     return articleId;

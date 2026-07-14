@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getOpenAIClient } from "@/lib/openai";
 import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
+import { buildTextAiUsage } from "@/services/aiUsage";
 import { renderPrompt } from "@/services/promptService";
 
 export async function generateArticleDraft(articleId: string) {
@@ -45,6 +46,10 @@ export async function generateArticleDraft(articleId: string) {
       messages: [{ role: "user", content: prompt.text }],
       temperature: prompt.temperature,
     });
+    const aiUsage = buildTextAiUsage({
+      model: prompt.model,
+      usage: response.usage,
+    });
 
     const markdown = response.choices[0]?.message?.content || "";
 
@@ -62,6 +67,7 @@ export async function generateArticleDraft(articleId: string) {
     await completeJob(jobId, {
       articleId: article.id,
       status: "draft_ready",
+      aiUsage,
     });
 
     return article.id;

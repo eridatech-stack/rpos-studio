@@ -94,6 +94,17 @@ export default async function ProductionRunsPage() {
                         ? new Date(run.created_at).toLocaleString()
                         : "—"}
                     </div>
+
+                    <div className="mt-1 text-xs text-slate-400">
+                      Duration: {formatDuration(run.duration_seconds)}
+                      {run.last_activity_at && (
+                        <>
+                          {" "}
+                          · Last activity{" "}
+                          {formatRelativeTime(run.last_activity_at)}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <StatusChip status={run.status} />
@@ -134,4 +145,58 @@ function friendlyStepName(run: ProductionRun) {
   };
 
   return labels[run.current_step] || run.current_step.replaceAll("_", " ");
+}
+
+function formatDuration(seconds: number | string | null | undefined) {
+  if (seconds === null || seconds === undefined || seconds === "") {
+    return "-";
+  }
+
+  const totalSeconds = Number(seconds);
+
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return "-";
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = Math.round(totalSeconds % 60);
+
+  if (minutes < 1) {
+    return `${remainingSeconds}s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours < 1) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+function formatRelativeTime(value: Date | string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+
+  const timestamp = new Date(value).getTime();
+  const diffSeconds = Math.max(
+    0,
+    Math.round((Date.now() - timestamp) / 1000)
+  );
+
+  if (diffSeconds < 60) {
+    return "just now";
+  }
+
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)}m ago`;
+  }
+
+  if (diffSeconds < 86400) {
+    return `${Math.floor(diffSeconds / 3600)}h ago`;
+  }
+
+  return new Date(value).toLocaleDateString();
 }

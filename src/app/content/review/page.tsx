@@ -3,6 +3,10 @@ import { AppShell } from "@/components/AppShell";
 import { ApproveArticleButton } from "@/components/ApproveArticleButton";
 import { getReviewQueue } from "@/modules/editorial/repository";
 import {
+  isQualityReviewPassed,
+  parseQualityReview,
+} from "@/modules/editorial/qualityReview";
+import {
   Card,
   EmptyState,
   MetricCard,
@@ -12,6 +16,9 @@ import {
 
 export default async function ReviewQueuePage() {
   const articles = await getReviewQueue();
+  const readyForDecision = articles.filter((article: any) =>
+    isQualityReviewPassed(parseQualityReview(article.editor_notes))
+  ).length;
 
   return (
     <AppShell>
@@ -44,15 +51,20 @@ export default async function ReviewQueuePage() {
 
           <MetricCard
             title="Ready for Decision"
-            value={articles.length}
-            subtitle="Approve after editorial review"
+            value={readyForDecision}
+            subtitle="Quality checklist complete"
             icon="✅"
             color="green"
           />
         </section>
 
         <div className="mt-8 space-y-5">
-          {articles.map((article: any) => (
+          {articles.map((article: any) => {
+            const qualityReviewPassed = isQualityReviewPassed(
+              parseQualityReview(article.editor_notes)
+            );
+
+            return (
             <Card key={article.id}>
               <div className="flex flex-col justify-between gap-6 xl:flex-row">
                 <div className="min-w-0 flex-1">
@@ -96,6 +108,15 @@ export default async function ReviewQueuePage() {
                       label="Target Words"
                       value={article.target_word_count}
                     />
+
+                    <Info
+                      label="Quality Review"
+                      value={
+                        qualityReviewPassed
+                          ? "Complete"
+                          : "Incomplete"
+                      }
+                    />
                   </div>
                 </div>
 
@@ -120,11 +141,13 @@ export default async function ReviewQueuePage() {
 
                   <ApproveArticleButton
                     articleId={article.id}
+                    disabled={!qualityReviewPassed}
                   />
                 </div>
               </div>
             </Card>
-          ))}
+          );
+          })}
 
           {articles.length === 0 && (
             <Card>

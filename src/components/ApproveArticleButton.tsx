@@ -4,8 +4,10 @@ import { AsyncActionButton } from "@/components/AsyncActionButton";
 
 export function ApproveArticleButton({
   articleId,
+  disabled = false,
 }: {
   articleId: string;
+  disabled?: boolean;
 }) {
   return (
     <AsyncActionButton
@@ -18,6 +20,7 @@ export function ApproveArticleButton({
       errorTitle="Approval failed"
       defaultErrorMessage="Unable to approve this article."
       variant="success"
+      disabled={disabled}
     />
   );
 }

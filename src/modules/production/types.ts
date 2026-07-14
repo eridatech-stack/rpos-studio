@@ -7,11 +7,14 @@ export interface ProductionRun {
   current_step: string | null;
   progress_percent: number;
   worker_id: string | null;
+  locked_at: Date | null;
   attempt_count: number;
   error_message: string | null;
   started_at: Date | null;
   finished_at: Date | null;
   created_at: Date;
+  duration_seconds?: number | null;
+  last_activity_at?: Date | null;
   article_title?: string | null;
   keyword?: string | null;
   site_name?: string | null;
@@ -27,6 +30,7 @@ export interface ProductionRunStep {
   status: string;
   started_at: Date | null;
   finished_at: Date | null;
+  duration_seconds?: number | null;
   error_message: string | null;
 }
 

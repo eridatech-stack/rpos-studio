@@ -9,6 +9,17 @@ export async function getProductionRuns(): Promise<ProductionRun[]> {
   const [rows]: any = await db.query(`
     SELECT
       pr.*,
+      TIMESTAMPDIFF(
+        SECOND,
+        pr.started_at,
+        COALESCE(pr.finished_at, NOW())
+      ) AS duration_seconds,
+      COALESCE(
+        pr.locked_at,
+        pr.started_at,
+        pr.finished_at,
+        pr.created_at
+      ) AS last_activity_at,
       a.title AS article_title,
       k.keyword,
       s.site_name,
@@ -31,6 +42,17 @@ export async function getProductionRun(
     `
     SELECT
       pr.*,
+      TIMESTAMPDIFF(
+        SECOND,
+        pr.started_at,
+        COALESCE(pr.finished_at, NOW())
+      ) AS duration_seconds,
+      COALESCE(
+        pr.locked_at,
+        pr.started_at,
+        pr.finished_at,
+        pr.created_at
+      ) AS last_activity_at,
       a.title AS article_title,
       k.keyword,
       s.site_name,
@@ -53,7 +75,13 @@ export async function getProductionRunSteps(
 ): Promise<ProductionRunStep[]> {
   const [rows]: any = await db.query(
     `
-    SELECT *
+    SELECT
+      *,
+      TIMESTAMPDIFF(
+        SECOND,
+        started_at,
+        COALESCE(finished_at, NOW())
+      ) AS duration_seconds
     FROM production_run_steps
     WHERE production_run_id = ?
     ORDER BY step_order ASC

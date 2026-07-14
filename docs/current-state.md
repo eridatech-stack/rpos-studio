@@ -45,6 +45,8 @@ The Keyword Library no longer starts content production. Production starts in th
 - attempt count
 - worker ID
 - progress tracking
+- production health metrics from worker locks and run timestamps
+- run and step duration metrics
 - failure state
 - production events logging foundation
 
@@ -56,6 +58,10 @@ The Keyword Library no longer starts content production. Production starts in th
 - Prompt Studio
 - prompt versions
 - prompt activation / rollback
+- OpenAI token usage metadata for outline and draft jobs
+- estimated text-generation cost in job output data when pricing is configured
+- dashboard totals for current-month and lifetime estimated AI text cost
+- image-generation model, size, and quality metadata in production events
 
 ### WordPress
 
@@ -70,6 +76,7 @@ The Keyword Library no longer starts content production. Production starts in th
 ### Editorial workflow
 
 - Editorial Review Queue
+- Quality checklist required before approval for publishing
 - Approve for Publishing
 - Publish Queue
 - Publish Now
@@ -83,6 +90,7 @@ The Keyword Library no longer starts content production. Production starts in th
 - cards
 - status chips
 - progress bars
+- auto-refresh on operations pages
 - empty states
 - toast notifications
 - reusable async action button
@@ -136,6 +144,15 @@ The valid production path is keyword-driven and asynchronous.
 ### 1. n8n workflow wiring
 
 n8n can call protected RPOS endpoints to queue approved keywords and request production summaries.
+
+Implemented:
+
+- bearer-token automation authentication via `AUTOMATION_SECRET`
+- queue-approved-keywords endpoint
+- production summary endpoint
+- active and daily queue limits
+- notification-ready summary text
+- operating runbook in `docs/n8n-automation.md`
 
 ### 2. Featured-image hardening
 

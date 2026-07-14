@@ -444,6 +444,7 @@ async function processRun(run: ClaimedRun) {
           wordpressMediaId:
             featuredImage.wordpressMediaId,
           altText: featuredImage.altText,
+          aiUsage: featuredImage.aiUsage,
         },
       });
     } else if (isStepCompleted("featured_image")) {

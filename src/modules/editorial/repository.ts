@@ -1,4 +1,10 @@
 import { db } from "@/lib/db";
+import {
+  isQualityReviewPassed,
+  parseQualityReview,
+  serializeQualityReview,
+  type QualityReviewChecks,
+} from "@/modules/editorial/qualityReview";
 
 export async function getReviewQueue() {
   const [rows]: any = await db.query(`
@@ -10,6 +16,7 @@ export async function getReviewQueue() {
       a.target_word_count,
       a.wordpress_post_id,
       a.wordpress_draft_url,
+      a.editor_notes,
       a.created_at,
       a.updated_at,
       k.keyword,
@@ -30,6 +37,35 @@ export async function getReviewQueue() {
 }
 
 export async function approveArticleForPublishing(articleId: string) {
+  const [articleRows]: any = await db.query(
+    `
+    SELECT id, status, editor_notes
+    FROM articles
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [articleId]
+  );
+
+  const article = articleRows[0];
+
+  if (
+    !article ||
+    !["wordpress_draft", "human_review"].includes(article.status)
+  ) {
+    throw new Error(
+      "Article was not found or is no longer waiting for review."
+    );
+  }
+
+  const qualityReview = parseQualityReview(article.editor_notes);
+
+  if (!isQualityReviewPassed(qualityReview)) {
+    throw new Error(
+      "Complete the quality checklist before approving this article for publishing."
+    );
+  }
+
   const [result]: any = await db.query(
     `
     UPDATE articles
@@ -37,7 +73,7 @@ export async function approveArticleForPublishing(articleId: string) {
       status = 'approved',
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-      AND status = 'wordpress_draft'
+      AND status IN ('wordpress_draft', 'human_review')
     `,
     [articleId]
   );
@@ -45,6 +81,38 @@ export async function approveArticleForPublishing(articleId: string) {
   if (result.affectedRows === 0) {
     throw new Error(
       "Article was not found or is no longer waiting for review."
+    );
+  }
+}
+
+export async function saveArticleQualityReview(
+  articleId: string,
+  input: {
+    checks: QualityReviewChecks;
+    notes: string;
+  }
+) {
+  const editorNotes = serializeQualityReview({
+    checks: input.checks,
+    notes: input.notes,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const [result]: any = await db.query(
+    `
+    UPDATE articles
+    SET
+      editor_notes = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+      AND status IN ('wordpress_draft', 'human_review', 'approved')
+    `,
+    [editorNotes, articleId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error(
+      "Article was not found or cannot be quality-reviewed in its current status."
     );
   }
 }

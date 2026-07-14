@@ -8,6 +8,7 @@ import {
   getWordPressConfig,
 } from "@/lib/wordpress";
 import { getArticleById } from "@/repositories/articleRepository";
+import { buildImageAiUsage } from "@/services/aiUsage";
 import { renderPrompt } from "@/services/promptService";
 
 type FeaturedImageResult = {
@@ -15,6 +16,7 @@ type FeaturedImageResult = {
   fileUrl: string;
   wordpressMediaId: number;
   altText: string;
+  aiUsage: ReturnType<typeof buildImageAiUsage>;
 };
 
 export async function generateAndUploadFeaturedImage(
@@ -58,7 +60,8 @@ export async function generateAndUploadFeaturedImage(
   );
 
   try {
-    const imageBuffer = await generateImageBuffer(prompt);
+    const generatedImage = await generateImageBuffer(prompt);
+    const imageBuffer = generatedImage.imageBuffer;
     const fileUrl = await saveGeneratedImageFile(imageId, imageBuffer);
 
     await db.query(
@@ -95,6 +98,7 @@ export async function generateAndUploadFeaturedImage(
       fileUrl,
       wordpressMediaId,
       altText,
+      aiUsage: generatedImage.aiUsage,
     };
   } catch (error) {
     await db.query(
@@ -212,20 +216,33 @@ function addRealisticImageDirection(prompt: string) {
 
 async function generateImageBuffer(prompt: string) {
   const openai = getOpenAIClient();
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const size = "1536x1024";
+  const quality = "high";
+  const outputFormat = "png";
 
   const response = await openai.images.generate({
-    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+    model,
     prompt,
     n: 1,
-    size: "1536x1024",
-    quality: "high",
-    output_format: "png",
+    size,
+    quality,
+    output_format: outputFormat,
   });
 
   const image = response.data?.[0];
+  const aiUsage = buildImageAiUsage({
+    model,
+    size,
+    quality,
+    outputFormat,
+  });
 
   if (image?.b64_json) {
-    return Buffer.from(image.b64_json, "base64");
+    return {
+      imageBuffer: Buffer.from(image.b64_json, "base64"),
+      aiUsage,
+    };
   }
 
   if (image?.url) {
@@ -237,7 +254,10 @@ async function generateImageBuffer(prompt: string) {
       );
     }
 
-    return Buffer.from(await download.arrayBuffer());
+    return {
+      imageBuffer: Buffer.from(await download.arrayBuffer()),
+      aiUsage,
+    };
   }
 
   throw new Error("OpenAI did not return image data.");

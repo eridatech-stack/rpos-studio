@@ -6,6 +6,11 @@ import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { GenerateFeaturedImageButton } from "@/components/GenerateFeaturedImageButton";
 import { PublishApprovedArticleButton } from "@/components/PublishApprovedArticleButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
+import { QualityReviewChecklist } from "@/components/QualityReviewChecklist";
+import {
+  isQualityReviewPassed,
+  parseQualityReview,
+} from "@/modules/editorial/qualityReview";
 import { getArticleById } from "@/repositories/articleRepository";
 import {
   Card,
@@ -43,6 +48,9 @@ export default async function ArticleDetailPage({
     );
   }
 
+  const qualityReview = parseQualityReview(article.editor_notes);
+  const qualityReviewPassed = isQualityReviewPassed(qualityReview);
+
   return (
     <AppShell>
       <main className="p-8">
@@ -64,7 +72,10 @@ export default async function ArticleDetailPage({
           actions={
             <div className="flex flex-wrap items-center gap-3">
               <StatusChip status={article.status} />
-              <ArticleActions article={article} />
+              <ArticleActions
+                article={article}
+                qualityReviewPassed={qualityReviewPassed}
+              />
             </div>
           }
         />
@@ -241,6 +252,17 @@ export default async function ArticleDetailPage({
               </div>
             </Card>
 
+            {(article.status === "wordpress_draft" ||
+              article.status === "human_review" ||
+              article.status === "approved") && (
+              <Card>
+                <QualityReviewChecklist
+                  articleId={article.id}
+                  initialReview={qualityReview}
+                />
+              </Card>
+            )}
+
             <FeaturedImageCard article={article} />
           </aside>
         </div>
@@ -251,8 +273,10 @@ export default async function ArticleDetailPage({
 
 function ArticleActions({
   article,
+  qualityReviewPassed,
 }: {
   article: any;
+  qualityReviewPassed: boolean;
 }) {
   if (article.status === "outline_ready") {
     return (
@@ -276,7 +300,10 @@ function ArticleActions({
           <GenerateFeaturedImageButton articleId={article.id} />
         )}
 
-        <ApproveArticleButton articleId={article.id} />
+        <ApproveArticleButton
+          articleId={article.id}
+          disabled={!qualityReviewPassed}
+        />
       </>
     );
   }

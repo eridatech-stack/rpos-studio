@@ -1,15 +1,21 @@
 export interface ProductionRun {
   id: string;
-  site_id: string;
-  article_id: string;
+  site_id: string | null;
+  keyword_id: string | null;
+  article_id: string | null;
   status: string;
   current_step: string | null;
   progress_percent: number;
+  worker_id: string | null;
+  attempt_count: number;
   error_message: string | null;
   started_at: Date | null;
   finished_at: Date | null;
   created_at: Date;
-  article_title?: string;
+  article_title?: string | null;
+  keyword?: string | null;
+  site_name?: string | null;
+  domain?: string | null;
 }
 
 export interface ProductionRunStep {
@@ -22,4 +28,15 @@ export interface ProductionRunStep {
   started_at: Date | null;
   finished_at: Date | null;
   error_message: string | null;
+}
+
+export interface ProductionRunEvent {
+  id: string;
+  production_run_id: string;
+  step_code: string | null;
+  event_type: string;
+  status: string | null;
+  message: string;
+  details_json: unknown;
+  created_at: Date;
 }

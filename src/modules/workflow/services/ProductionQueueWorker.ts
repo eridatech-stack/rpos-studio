@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { generateArticlePlan } from "@/services/articlePlanningService";
 import { generateArticleDraft } from "@/services/articleDraftService";
+import {
+  generateAndUploadFeaturedImage,
+  getUploadedFeaturedImageMediaId,
+} from "@/services/featuredImageService";
 import { publishArticleToWordPressDraft } from "@/services/wordpressService";
 import { addProductionEvent } from "@/modules/production/eventRepository";
 
@@ -23,6 +27,11 @@ type ProductionStepStatus =
   | "completed"
   | "failed"
   | "skipped";
+
+type ProductionStepSnapshot = {
+  step_code: string;
+  status: ProductionStepStatus;
+};
 
 const workerId = `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
 
@@ -157,6 +166,77 @@ async function updateStep(
   );
 }
 
+async function getRunStepStatuses(
+  runId: string
+): Promise<Map<string, ProductionStepStatus>> {
+  const [rows]: any = await db.query(
+    `
+    SELECT step_code, status
+    FROM production_run_steps
+    WHERE production_run_id = ?
+    `,
+    [runId]
+  );
+
+  return new Map(
+    rows.map((step: ProductionStepSnapshot) => [
+      step.step_code,
+      step.status,
+    ])
+  );
+}
+
+async function getRunStepStatusesWithBackfill(
+  runId: string
+): Promise<Map<string, ProductionStepStatus>> {
+  const stepStatuses = await getRunStepStatuses(runId);
+
+  if (
+    stepStatuses.has("featured_image") ||
+    stepStatuses.get("wordpress_draft") === "completed"
+  ) {
+    return stepStatuses;
+  }
+
+  await db.query(
+    `
+    INSERT INTO production_run_steps (
+      id,
+      production_run_id,
+      step_code,
+      step_name,
+      status,
+      step_order,
+      created_at
+    )
+    VALUES (?, ?, 'featured_image', 'Generate Featured Image', 'queued', 30, NOW())
+    `,
+    [randomUUID(), runId]
+  );
+
+  await db.query(
+    `
+    UPDATE production_run_steps
+    SET step_order = 40
+    WHERE production_run_id = ?
+      AND step_code = 'wordpress_draft'
+      AND step_order < 40
+    `,
+    [runId]
+  );
+
+  await addProductionEvent({
+    productionRunId: runId,
+    stepCode: "featured_image",
+    eventType: "step_backfilled",
+    status: "queued",
+    message:
+      "Featured image step added to an existing production run.",
+  });
+
+  return getRunStepStatuses(runId);
+}
+
 async function failRunningStep(
   runId: string,
   message: string
@@ -183,156 +263,258 @@ async function processRun(run: ClaimedRun) {
   }
 
   try {
+    const stepStatuses =
+      await getRunStepStatusesWithBackfill(run.id);
+    const hasStep = (stepCode: string) =>
+      stepStatuses.has(stepCode);
+    const isStepCompleted = (stepCode: string) =>
+      stepStatuses.get(stepCode) === "completed";
+
+    let articleId = run.article_id;
+
     /*
      * Step 1: Generate outline and create article.
      */
-    await updateRun(run.id, {
-      status: "running",
-      currentStep: "outline",
-      progress: 10,
-    });
+    if (!isStepCompleted("outline")) {
+      await updateRun(run.id, {
+        status: "running",
+        currentStep: "outline",
+        progress: 10,
+      });
 
-    await updateStep(
-      run.id,
-      "outline",
-      "running"
-    );
-
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "outline",
-      eventType: "step_started",
-      status: "running",
-      message: "Outline generation started.",
-      details: {
-        keywordId: run.keyword_id,
-      },
-    });
-
-    const articleId =
-      await generateArticlePlan(
-        run.keyword_id
+      await updateStep(
+        run.id,
+        "outline",
+        "running"
       );
 
-    await updateStep(
-      run.id,
-      "outline",
-      "completed"
-    );
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "outline",
+        eventType: "step_started",
+        status: "running",
+        message: "Outline generation started.",
+        details: {
+          keywordId: run.keyword_id,
+        },
+      });
 
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "outline",
-      eventType: "step_completed",
-      status: "completed",
-      message:
-        "Outline and article plan generated successfully.",
-      details: {
-        keywordId: run.keyword_id,
-        articleId,
-      },
-    });
+      articleId =
+        await generateArticlePlan(
+          run.keyword_id
+        );
+
+      await updateStep(
+        run.id,
+        "outline",
+        "completed"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "outline",
+        eventType: "step_completed",
+        status: "completed",
+        message:
+          "Outline and article plan generated successfully.",
+        details: {
+          keywordId: run.keyword_id,
+          articleId,
+        },
+      });
+    } else if (!articleId) {
+      throw new Error(
+        "Cannot resume production run: outline is completed but article_id is missing."
+      );
+    }
 
     /*
      * Step 2: Generate full article draft.
      */
-    await updateRun(run.id, {
-      currentStep: "draft",
-      progress: 40,
-      articleId,
-    });
+    if (!articleId) {
+      throw new Error(
+        "Cannot generate draft because article_id is missing."
+      );
+    }
 
-    await updateStep(
-      run.id,
-      "draft",
-      "running"
-    );
-
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "draft",
-      eventType: "step_started",
-      status: "running",
-      message:
-        "Article draft generation started.",
-      details: {
+    if (!isStepCompleted("draft")) {
+      await updateRun(run.id, {
+        currentStep: "draft",
+        progress: 40,
         articleId,
-      },
-    });
+      });
 
-    await generateArticleDraft(articleId);
-
-    await updateStep(
-      run.id,
-      "draft",
-      "completed"
-    );
-
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "draft",
-      eventType: "step_completed",
-      status: "completed",
-      message:
-        "Article draft generated successfully.",
-      details: {
-        articleId,
-      },
-    });
-
-    /*
-     * Step 3: Create WordPress draft.
-     */
-    await updateRun(run.id, {
-      currentStep: "wordpress_draft",
-      progress: 75,
-      articleId,
-    });
-
-    await updateStep(
-      run.id,
-      "wordpress_draft",
-      "running"
-    );
-
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "wordpress_draft",
-      eventType: "step_started",
-      status: "running",
-      message:
-        "WordPress draft creation started.",
-      details: {
-        articleId,
-      },
-    });
-
-    const wordpressResult =
-      await publishArticleToWordPressDraft(
-        articleId
+      await updateStep(
+        run.id,
+        "draft",
+        "running"
       );
 
-    await updateStep(
-      run.id,
-      "wordpress_draft",
-      "completed"
-    );
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "draft",
+        eventType: "step_started",
+        status: "running",
+        message:
+          "Article draft generation started.",
+        details: {
+          articleId,
+        },
+      });
 
-    await addProductionEvent({
-      productionRunId: run.id,
-      stepCode: "wordpress_draft",
-      eventType: "step_completed",
-      status: "completed",
-      message:
-        "WordPress draft created successfully.",
-      details: {
+      await generateArticleDraft(articleId);
+
+      await updateStep(
+        run.id,
+        "draft",
+        "completed"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "draft",
+        eventType: "step_completed",
+        status: "completed",
+        message:
+          "Article draft generated successfully.",
+        details: {
+          articleId,
+        },
+      });
+    }
+
+    /*
+     * Step 3: Generate and upload featured image.
+     */
+    let featuredMediaId: number | null = null;
+
+    if (
+      hasStep("featured_image") &&
+      !isStepCompleted("featured_image")
+    ) {
+      await updateRun(run.id, {
+        currentStep: "featured_image",
+        progress: 65,
         articleId,
-        wordpressPostId:
-          wordpressResult.wordpressPostId,
-        wordpressDraftUrl:
-          wordpressResult.wordpressDraftUrl,
-      },
-    });
+      });
+
+      await updateStep(
+        run.id,
+        "featured_image",
+        "running"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "featured_image",
+        eventType: "step_started",
+        status: "running",
+        message:
+          "Featured image generation and upload started.",
+        details: {
+          articleId,
+        },
+      });
+
+      const featuredImage =
+        await generateAndUploadFeaturedImage(
+          articleId
+        );
+
+      featuredMediaId =
+        featuredImage.wordpressMediaId;
+
+      await updateStep(
+        run.id,
+        "featured_image",
+        "completed"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "featured_image",
+        eventType: "step_completed",
+        status: "completed",
+        message:
+          "Featured image generated and uploaded successfully.",
+        details: {
+          articleId,
+          imageId: featuredImage.imageId,
+          fileUrl: featuredImage.fileUrl,
+          wordpressMediaId:
+            featuredImage.wordpressMediaId,
+          altText: featuredImage.altText,
+        },
+      });
+    } else if (isStepCompleted("featured_image")) {
+      featuredMediaId =
+        await getUploadedFeaturedImageMediaId(articleId);
+    }
+
+    /*
+     * Step 4: Create WordPress draft.
+     */
+    let wordpressResult: {
+      wordpressPostId: number;
+      wordpressDraftUrl: string;
+    } | null = null;
+
+    if (!isStepCompleted("wordpress_draft")) {
+      await updateRun(run.id, {
+        currentStep: "wordpress_draft",
+        progress: 75,
+        articleId,
+      });
+
+      await updateStep(
+        run.id,
+        "wordpress_draft",
+        "running"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "wordpress_draft",
+        eventType: "step_started",
+        status: "running",
+        message:
+          "WordPress draft creation started.",
+        details: {
+          articleId,
+        },
+      });
+
+      wordpressResult =
+        await publishArticleToWordPressDraft(
+          articleId,
+          {
+            featuredMediaId,
+          }
+        );
+
+      await updateStep(
+        run.id,
+        "wordpress_draft",
+        "completed"
+      );
+
+      await addProductionEvent({
+        productionRunId: run.id,
+        stepCode: "wordpress_draft",
+        eventType: "step_completed",
+        status: "completed",
+        message:
+          "WordPress draft created successfully.",
+        details: {
+          articleId,
+          wordpressPostId:
+            wordpressResult.wordpressPostId,
+          wordpressDraftUrl:
+            wordpressResult.wordpressDraftUrl,
+          featuredMediaId,
+        },
+      });
+    }
 
     /*
      * Complete the full production run.
@@ -355,9 +537,9 @@ async function processRun(run: ClaimedRun) {
       details: {
         articleId,
         wordpressPostId:
-          wordpressResult.wordpressPostId,
+          wordpressResult?.wordpressPostId,
         wordpressDraftUrl:
-          wordpressResult.wordpressDraftUrl,
+          wordpressResult?.wordpressDraftUrl,
       },
     });
 

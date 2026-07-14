@@ -13,26 +13,26 @@
 - [x] Publish Queue
 - [x] Manual publication
 - [x] Production event table and worker logging foundation
-- [ ] Production timeline UI
-- [ ] Retry failed runs
+- [x] Production timeline UI
+- [x] Retry failed runs
 - [ ] Auto-refresh for operations pages
 
 ## Phase 2 — Featured images
 
-- [ ] Generate featured-image prompt
-- [ ] Generate image
-- [ ] persist image metadata
-- [ ] upload image to WordPress Media
-- [ ] save media ID
-- [ ] set featured image on WordPress post
+- [x] Generate featured-image prompt
+- [x] Generate image
+- [x] persist image metadata
+- [x] upload image to WordPress Media
+- [x] save media ID
+- [x] set featured image on WordPress post
 
 ## Phase 3 — n8n automation
 
-- [ ] protected automation authentication
-- [ ] queue-approved-keywords endpoint
-- [ ] per-site queue limit
+- [x] protected automation authentication
+- [x] queue-approved-keywords endpoint
+- [x] per-site queue limit
 - [ ] scheduled n8n workflow
-- [ ] production summary endpoint
+- [x] production summary endpoint
 - [ ] success/failure notifications
 - [ ] operating runbook
 

@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { ApproveArticleButton } from "@/components/ApproveArticleButton";
 import { DraftEditor } from "@/components/DraftEditor";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
+import { GenerateFeaturedImageButton } from "@/components/GenerateFeaturedImageButton";
 import { PublishApprovedArticleButton } from "@/components/PublishApprovedArticleButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
 import { getArticleById } from "@/repositories/articleRepository";
@@ -239,6 +240,8 @@ export default async function ArticleDetailPage({
                 />
               </div>
             </Card>
+
+            <FeaturedImageCard article={article} />
           </aside>
         </div>
       </main>
@@ -268,15 +271,27 @@ function ArticleActions({
     article.status === "human_review"
   ) {
     return (
-      <ApproveArticleButton articleId={article.id} />
+      <>
+        {article.wordpress_post_id && (
+          <GenerateFeaturedImageButton articleId={article.id} />
+        )}
+
+        <ApproveArticleButton articleId={article.id} />
+      </>
     );
   }
 
   if (article.status === "approved") {
     return (
-      <PublishApprovedArticleButton
-        articleId={article.id}
-      />
+      <>
+        {article.wordpress_post_id && (
+          <GenerateFeaturedImageButton articleId={article.id} />
+        )}
+
+        <PublishApprovedArticleButton
+          articleId={article.id}
+        />
+      </>
     );
   }
 
@@ -294,6 +309,71 @@ function ArticleActions({
   }
 
   return null;
+}
+
+function FeaturedImageCard({
+  article,
+}: {
+  article: any;
+}) {
+  const featuredImage = article.images?.find(
+    (image: any) => image.type === "featured"
+  );
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Featured Image</h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            WordPress media and local generation status.
+          </p>
+        </div>
+
+        {article.wordpress_post_id &&
+          article.status !== "published" && (
+            <GenerateFeaturedImageButton articleId={article.id} />
+          )}
+      </div>
+
+      {featuredImage ? (
+        <div className="mt-5 space-y-4">
+          {featuredImage.file_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={featuredImage.file_url}
+              alt={featuredImage.alt_text || article.title}
+              className="aspect-[3/2] w-full rounded-xl border object-cover"
+            />
+          )}
+
+          <div className="space-y-3 text-sm">
+            <Info
+              label="Status"
+              value={friendlyValue(featuredImage.status)}
+            />
+            <Info
+              label="WordPress Media ID"
+              value={featuredImage.wordpress_media_id}
+            />
+            <Info
+              label="Alt Text"
+              value={featuredImage.alt_text}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5">
+          <EmptyState
+            icon="🖼️"
+            title="No featured image"
+            description="Generate an image after the WordPress draft exists."
+          />
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function Info({

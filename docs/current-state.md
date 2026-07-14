@@ -39,6 +39,7 @@ The Keyword Library no longer starts content production. Production starts in th
 - `production_run_steps`
 - `production_run_events`
 - bulk queue API
+- failed run retry API and UI
 - standalone production worker
 - worker locking with `FOR UPDATE SKIP LOCKED`
 - attempt count
@@ -59,6 +60,8 @@ The Keyword Library no longer starts content production. Production starts in th
 ### WordPress
 
 - create WordPress draft
+- upload generated featured image to WordPress Media
+- set generated image as WordPress featured image
 - save WordPress post ID and draft URL
 - editorial approval
 - publish approved post
@@ -100,6 +103,7 @@ Approved keyword
 → log worker_claimed event
 → outline step
 → draft step
+→ featured image step
 → WordPress draft step
 → log run_completed event
 → article appears in Editorial Review Queue
@@ -129,17 +133,13 @@ The valid production path is keyword-driven and asynchronous.
 
 ## Immediate work remaining
 
-### 1. Production timeline UI
+### 1. n8n workflow wiring
 
-Use `production_run_events` to show a chronological timeline for each run.
+n8n can call protected RPOS endpoints to queue approved keywords and request production summaries.
 
-### 2. Retry failed production
+### 2. Featured-image hardening
 
-Add a guarded retry action for failed runs.
-
-### 3. Featured-image generation
-
-Target flow:
+Implemented target flow:
 
 ```text
 draft generated
@@ -151,7 +151,13 @@ draft generated
 → complete WordPress draft
 ```
 
-### 4. n8n automation
+Remaining hardening:
+
+- add prompt seed / Prompt Studio default for `featured_image`
+- add quality review controls
+- add image preview UI in article detail
+
+### 3. n8n automation workflow
 
 n8n should:
 

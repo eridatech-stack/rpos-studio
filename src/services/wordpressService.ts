@@ -14,7 +14,12 @@ function markdownToBasicHtml(markdown: string) {
     .replace(/$/, "</p>");
 }
 
-export async function publishArticleToWordPressDraft(articleId: string) {
+export async function publishArticleToWordPressDraft(
+  articleId: string,
+  input: {
+    featuredMediaId?: number | null;
+  } = {}
+) {
   const article: any = await getArticleById(articleId);
 
   if (!article) {
@@ -52,6 +57,7 @@ export async function publishArticleToWordPressDraft(articleId: string) {
         status: "draft",
         content: contentHtml,
         excerpt: article.meta_description || "",
+        featured_media: input.featuredMediaId ?? undefined,
       }),
     });
 

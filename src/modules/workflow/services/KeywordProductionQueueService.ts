@@ -14,9 +14,14 @@ const keywordProductionSteps = [
     order: 20,
   },
   {
+    code: "featured_image",
+    name: "Generate Featured Image",
+    order: 30,
+  },
+  {
     code: "wordpress_draft",
     name: "Create WordPress Draft",
-    order: 30,
+    order: 40,
   },
 ];
 

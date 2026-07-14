@@ -46,6 +46,13 @@ FOR UPDATE SKIP LOCKED
 - `production_run_steps` stores step state.
 - `production_run_events` stores chronological events.
 - `production_runs` stores overall status and progress.
+- Failed runs can be returned to the queue; the worker resumes from completed step state.
+
+## Featured images
+
+The production worker generates featured images after draft generation and before WordPress draft creation.
+
+Generated image metadata is stored in `images`, the PNG is saved under `public/generated-images`, the file is uploaded to WordPress Media, and the returned media ID is set as `featured_media` when the WordPress draft is created.
 
 ## WordPress architecture
 
@@ -68,3 +75,5 @@ Before n8n integration:
 - validate a bearer token or HMAC signature
 - apply per-site limits
 - do not expose unrestricted queue endpoints publicly
+
+Current automation endpoints use `AUTOMATION_SECRET` as a bearer token and require a caller-provided `siteId`.

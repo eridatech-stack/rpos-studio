@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { DeleteArticleButton } from "@/components/DeleteArticleButton";
 import { getArticles } from "@/repositories/articleRepository";
 import {
   Card,
@@ -76,12 +77,23 @@ export default async function ArticlesPage() {
                       </td>
 
                       <td className="p-4">
-                        <Link
-                          href={`/articles/${article.id}`}
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                        >
-                          Open Article
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/articles/${article.id}`}
+                            title="Open Article"
+                            aria-label={`Open article ${article.title}`}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-lg transition hover:bg-slate-100"
+                          >
+                            📄
+                          </Link>
+
+                          {article.status !== "published" && (
+                            <DeleteArticleButton
+                              articleId={article.id}
+                              title={article.title}
+                            />
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

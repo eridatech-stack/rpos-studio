@@ -121,9 +121,119 @@ export async function getArticleById(articleId: string) {
     [articleId]
   );
 
+  const [images]: any = await db.query(
+    `
+    SELECT *
+    FROM images
+    WHERE article_id = ?
+    ORDER BY created_at DESC
+    `,
+    [articleId]
+  );
+
   return {
     ...article,
     article_sections: sections,
     article_faqs: faqs,
+    images,
   };
+}
+
+export async function deleteNonPublishedArticleAndRestoreKeyword(
+  articleId: string
+) {
+  return prisma.$transaction(async (transaction) => {
+    const article = await transaction.articles.findUnique({
+      where: {
+        id: articleId,
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        primary_keyword_id: true,
+      },
+    });
+
+    if (!article) {
+      throw new Error("Article not found.");
+    }
+
+    if (article.status === "published") {
+      throw new Error("Published articles cannot be deleted.");
+    }
+
+    const keywordId = article.primary_keyword_id;
+
+    const jobCleanupConditions = keywordId
+      ? [
+          {
+            related_article_id: article.id,
+          },
+          {
+            related_keyword_id: keywordId,
+          },
+        ]
+      : [
+          {
+            related_article_id: article.id,
+          },
+        ];
+
+    await transaction.jobs.updateMany({
+      where: {
+        OR: jobCleanupConditions,
+      },
+      data: {
+        related_article_id: null,
+        related_keyword_id: null,
+      },
+    });
+
+    if (keywordId) {
+      await transaction.production_runs.deleteMany({
+        where: {
+          OR: [
+            {
+              article_id: article.id,
+            },
+            {
+              keyword_id: keywordId,
+            },
+          ],
+        },
+      });
+    } else {
+      await transaction.production_runs.deleteMany({
+        where: {
+          article_id: article.id,
+        },
+      });
+    }
+
+    await transaction.articles.delete({
+      where: {
+        id: article.id,
+      },
+    });
+
+    if (keywordId) {
+      await transaction.keywords.update({
+        where: {
+          id: keywordId,
+        },
+        data: {
+          status: "approved",
+          content_stage: "keyword",
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    return {
+      id: article.id,
+      title: article.title,
+      keywordId,
+    };
+  });
 }

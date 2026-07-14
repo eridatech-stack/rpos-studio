@@ -391,6 +391,7 @@ function friendlyStep(step: string | null) {
   const labels: Record<string, string> = {
     outline: "Generating outline",
     draft: "Generating article draft",
+    featured_image: "Generating featured image",
     wordpress_draft: "Creating WordPress draft",
   };
 

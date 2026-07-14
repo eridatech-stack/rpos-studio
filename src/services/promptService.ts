@@ -19,6 +19,10 @@ export async function renderPrompt(
 
   return {
     text,
+    id: prompt.id,
+    promptKey: prompt.prompt_key,
+    name: prompt.name,
+    version: prompt.version,
     model: prompt.model,
     temperature: Number(prompt.temperature),
     outputFormat: prompt.output_format,

@@ -57,7 +57,7 @@
 - [x] multiple-worker visibility
 - [x] run duration metrics
 - [x] AI token/cost tracking
-- [ ] prompt performance analytics
+- [x] prompt performance analytics
 - [ ] Google Search Console
 - [ ] Google Analytics
 - [ ] AdSense revenue tracking

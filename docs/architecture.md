@@ -64,6 +64,8 @@ Outline and draft generation store OpenAI token usage metadata in the related `j
 
 Text cost is an estimate derived from model pricing configured in code or overridden with `AI_USAGE_PRICING_JSON`. The Jobs page displays model, input tokens, output tokens, and estimated cost for jobs that contain usage metadata.
 
+Prompt rendering returns prompt version metadata. Outline and draft jobs store that metadata in `jobs.output_data`, allowing Prompt Studio to aggregate runs, failures, duration, tokens, and estimated cost by prompt version for newly generated jobs.
+
 ## WordPress architecture
 
 Use the WordPress REST API for:

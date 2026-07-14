@@ -7,6 +7,9 @@ import { renderPrompt } from "@/services/promptService";
 
 export async function generateArticleDraft(articleId: string) {
   const article: any = await getArticleById(articleId);
+  let promptMetadata:
+    | ReturnType<typeof buildPromptMetadata>
+    | null = null;
 
   if (!article) {
     throw new Error("Article not found.");
@@ -38,6 +41,7 @@ export async function generateArticleDraft(articleId: string) {
       target_word_count: article.target_word_count ?? 1800,
       outline: outlineText,
     });
+    promptMetadata = buildPromptMetadata(prompt);
 
     const openai = getOpenAIClient();
     
@@ -67,12 +71,35 @@ export async function generateArticleDraft(articleId: string) {
     await completeJob(jobId, {
       articleId: article.id,
       status: "draft_ready",
+      prompt: promptMetadata,
       aiUsage,
     });
 
     return article.id;
   } catch (error: any) {
-    await failJob(jobId, error.message || "Draft generation failed.");
+    await failJob(
+      jobId,
+      error.message || "Draft generation failed.",
+      {
+        prompt: promptMetadata,
+      }
+    );
     throw error;
   }
+}
+
+function buildPromptMetadata(prompt: {
+  id: string;
+  promptKey: string;
+  name: string;
+  version: string | null;
+  model: string;
+}) {
+  return {
+    id: prompt.id,
+    key: prompt.promptKey,
+    name: prompt.name,
+    version: prompt.version,
+    model: prompt.model,
+  };
 }

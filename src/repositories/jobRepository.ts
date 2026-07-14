@@ -55,15 +55,20 @@ export async function completeJob(jobId: string, outputData?: unknown) {
   );
 }
 
-export async function failJob(jobId: string, errorMessage: string) {
+export async function failJob(
+  jobId: string,
+  errorMessage: string,
+  outputData?: unknown
+) {
   await db.query(
     `
     UPDATE jobs
     SET status = 'failed',
         error_message = ?,
+        output_data = ?,
         finished_at = CURRENT_TIMESTAMP
     WHERE id = ?
     `,
-    [errorMessage, jobId]
+    [errorMessage, JSON.stringify(outputData || {}), jobId]
   );
 }

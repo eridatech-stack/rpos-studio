@@ -15,6 +15,9 @@ function safeSlug(value: string) {
 
 export async function generateArticlePlan(keywordId: string) {
   const keyword = await getKeywordById(keywordId);
+  let promptMetadata:
+    | ReturnType<typeof buildPromptMetadata>
+    | null = null;
 
   if (!keyword) {
     throw new Error("Keyword not found.");
@@ -46,6 +49,7 @@ export async function generateArticlePlan(keywordId: string) {
       intent: keyword.intent ?? "informational",
       article_type: keyword.article_type ?? "cluster",
     });
+    promptMetadata = buildPromptMetadata(prompt);
 
     const { data: plan, aiUsage } = await generateJsonWithAIResult({
       prompt: prompt.text,
@@ -78,12 +82,35 @@ export async function generateArticlePlan(keywordId: string) {
       articleId,
       title: plan.title,
       slug: plan.slug,
+      prompt: promptMetadata,
       aiUsage,
     });
 
     return articleId;
   } catch (error: any) {
-    await failJob(jobId, error.message || "Article plan generation failed.");
+    await failJob(
+      jobId,
+      error.message || "Article plan generation failed.",
+      {
+        prompt: promptMetadata,
+      }
+    );
     throw error;
   }
+}
+
+function buildPromptMetadata(prompt: {
+  id: string;
+  promptKey: string;
+  name: string;
+  version: string | null;
+  model: string;
+}) {
+  return {
+    id: prompt.id,
+    key: prompt.promptKey,
+    name: prompt.name,
+    version: prompt.version,
+    model: prompt.model,
+  };
 }

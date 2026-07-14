@@ -61,6 +61,7 @@ The Keyword Library no longer starts content production. Production starts in th
 - OpenAI token usage metadata for outline and draft jobs
 - estimated text-generation cost in job output data when pricing is configured
 - dashboard totals for current-month and lifetime estimated AI text cost
+- Prompt Studio performance analytics by prompt version for new jobs
 - image-generation model, size, and quality metadata in production events
 
 ### WordPress

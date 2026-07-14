@@ -316,8 +316,22 @@ function FeaturedImageCard({
 }: {
   article: any;
 }) {
-  const featuredImage = article.images?.find(
+  const featuredImages =
+    article.images?.filter(
+      (image: any) => image.type === "featured"
+    ) ?? [];
+
+  const featuredImage = featuredImages.find(
+    (image: any) =>
+      image.status === "uploaded" ||
+      image.status === "generated" ||
+      image.status === "approved"
+  ) ||
+    featuredImages[0];
+
+  const previousImages = featuredImages.filter(
     (image: any) => image.type === "featured"
+      && image.id !== featuredImage?.id
   );
 
   return (
@@ -362,6 +376,41 @@ function FeaturedImageCard({
               value={featuredImage.alt_text}
             />
           </div>
+
+          {previousImages.length > 0 && (
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-bold text-slate-700">
+                Image History
+              </h3>
+
+              <div className="mt-3 space-y-2">
+                {previousImages.map((image: any) => (
+                  <div
+                    key={image.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 p-3 text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-700">
+                        {friendlyValue(image.status)}
+                      </div>
+
+                      <div className="mt-1 text-slate-400">
+                        {image.created_at
+                          ? new Date(image.created_at).toLocaleString()
+                          : "—"}
+                      </div>
+                    </div>
+
+                    {image.wordpress_media_id && (
+                      <div className="font-mono text-slate-500">
+                        WP {String(image.wordpress_media_id)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-5">

@@ -32,6 +32,8 @@ export async function generateAndUploadFeaturedImage(
   const altText = buildAltText(article);
   const imageId = randomUUID();
 
+  await markPreviousFeaturedImagesSuperseded(article.id);
+
   await db.query(
     `
     INSERT INTO images (
@@ -55,44 +57,57 @@ export async function generateAndUploadFeaturedImage(
     ]
   );
 
-  const imageBuffer = await generateImageBuffer(prompt);
-  const fileUrl = await saveGeneratedImageFile(imageId, imageBuffer);
+  try {
+    const imageBuffer = await generateImageBuffer(prompt);
+    const fileUrl = await saveGeneratedImageFile(imageId, imageBuffer);
 
-  await db.query(
-    `
-    UPDATE images
-    SET
-      file_url = ?,
-      status = 'generated'
-    WHERE id = ?
-    `,
-    [fileUrl, imageId]
-  );
+    await db.query(
+      `
+      UPDATE images
+      SET
+        file_url = ?,
+        status = 'generated'
+      WHERE id = ?
+      `,
+      [fileUrl, imageId]
+    );
 
-  const wordpressMediaId = await uploadImageToWordPress({
-    imageBuffer,
-    filename: `${article.slug || imageId}-featured.png`,
-    title: article.title,
-    altText,
-  });
+    const wordpressMediaId = await uploadImageToWordPress({
+      imageBuffer,
+      filename: `${article.slug || imageId}-featured.png`,
+      title: article.title,
+      altText,
+    });
 
-  await db.query(
-    `
-    UPDATE images
-    SET
-      wordpress_media_id = ?,
-      status = 'uploaded'
-    WHERE id = ?
-    `,
-    [wordpressMediaId, imageId]
-  );
+    await db.query(
+      `
+      UPDATE images
+      SET
+        wordpress_media_id = ?,
+        status = 'uploaded'
+      WHERE id = ?
+      `,
+      [wordpressMediaId, imageId]
+    );
 
-  return {
-    imageId,
-    fileUrl,
-    wordpressMediaId,
-    altText,
-  };
+    return {
+      imageId,
+      fileUrl,
+      wordpressMediaId,
+      altText,
+    };
+  } catch (error) {
+    await db.query(
+      `
+      UPDATE images
+      SET status = 'rejected'
+      WHERE id = ?
+      `,
+      [imageId]
+    );
+
+    throw error;
+  }
 }
 
 export async function getUploadedFeaturedImageMediaId(
@@ -170,6 +185,19 @@ async function buildFeaturedImagePrompt(article: any) {
       `Summary: ${article.meta_description ?? ""}`,
     ].join("\n");
   }
+}
+
+async function markPreviousFeaturedImagesSuperseded(articleId: string) {
+  await db.query(
+    `
+    UPDATE images
+    SET status = 'rejected'
+    WHERE article_id = ?
+      AND type = 'featured'
+      AND status IN ('generated', 'uploaded', 'approved')
+    `,
+    [articleId]
+  );
 }
 
 function addRealisticImageDirection(prompt: string) {

@@ -25,6 +25,8 @@
 - [x] upload image to WordPress Media
 - [x] save media ID
 - [x] set featured image on WordPress post
+- [x] Prompt Studio seed for featured-image prompt
+- [x] Article featured-image preview and generation history
 
 ## Phase 3 — n8n automation
 

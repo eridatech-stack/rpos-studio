@@ -153,9 +153,8 @@ draft generated
 
 Remaining hardening:
 
-- add prompt seed / Prompt Studio default for `featured_image`
 - add quality review controls
-- add image preview UI in article detail
+- add richer image approval/rejection controls
 
 ### 3. n8n automation workflow
 

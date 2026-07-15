@@ -55,6 +55,7 @@ The Keyword Library no longer starts content production. Production starts in th
 - article plan / outline generation
 - draft generation
 - prompt rendering
+- current date context is injected into production prompts
 - Prompt Studio
 - prompt versions
 - prompt activation / rollback
@@ -67,6 +68,10 @@ The Keyword Library no longer starts content production. Production starts in th
 ### WordPress
 
 - create WordPress draft
+- map RPOS article category to WordPress category during draft creation
+- disable comments and pings on WordPress drafts
+- strip duplicate leading title from WordPress draft content
+- send Yoast SEO title, meta description, and focus keyword when accepted by WordPress REST
 - upload generated featured image to WordPress Media
 - set generated image as WordPress featured image
 - save WordPress post ID and draft URL

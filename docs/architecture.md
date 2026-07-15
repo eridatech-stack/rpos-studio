@@ -66,6 +66,8 @@ Text cost is an estimate derived from model pricing configured in code or overri
 
 Prompt rendering returns prompt version metadata. Outline and draft jobs store that metadata in `jobs.output_data`, allowing Prompt Studio to aggregate runs, failures, duration, tokens, and estimated cost by prompt version for newly generated jobs.
 
+Prompt rendering also injects current date context into article planning, article drafting, and featured-image prompt generation. The default content timezone is `Asia/Yerevan` and can be overridden with `CONTENT_TIME_ZONE`. Prompt text can use `{{current_date}}`, `{{current_year}}`, `{{content_time_zone}}`, and `{{date_context}}`.
+
 ## WordPress architecture
 
 Use the WordPress REST API for:
@@ -74,6 +76,10 @@ Use the WordPress REST API for:
 - publication
 - media upload
 - featured media assignment
+
+WordPress draft creation resolves the RPOS article category to a WordPress category by `wp_category_id:<id>` in the local category description, then WordPress slug, then exact WordPress category name. If no mapping is found, draft creation fails instead of silently using the WordPress default category. Drafts are created with comments and pings closed.
+
+Draft content strips a generated leading title heading before upload because WordPress renders the post title separately. Draft creation also sends Yoast SEO meta fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, `_yoast_wpseo_focuskw`) when WordPress accepts them through REST; if protected meta is rejected, the draft is still created and the intended SEO payload is recorded in the WordPress job output.
 
 ## Multi-site direction
 

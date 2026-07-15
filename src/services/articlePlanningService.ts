@@ -56,32 +56,54 @@ export async function generateArticlePlan(keywordId: string) {
       model: prompt.model,
       temperature: prompt.temperature,
     });
+    const normalizedPlan = normalizePlanTemporalDrift({
+      plan,
+      keyword: keyword.keyword,
+    });
 
     const articleId = await createArticleFromPlan({
       siteId: keyword.site_id,
       categoryId: keyword.category_id,
       clusterId: keyword.cluster_id,
       keywordId: keyword.id,
-      title: plan.title || keyword.keyword,
-      slug: plan.slug || safeSlug(plan.title || keyword.keyword),
-      articleType: plan.article_type || keyword.article_type || "cluster",
+      title: normalizedPlan.title || keyword.keyword,
+      slug:
+        normalizedPlan.slug ||
+        safeSlug(normalizedPlan.title || keyword.keyword),
+      articleType:
+        normalizedPlan.article_type || keyword.article_type || "cluster",
       intent: keyword.intent || "informational",
-      targetWordCount: Number(plan.target_word_count || 1800),
-      outline: plan.outline || [],
-      faqs: plan.faq || [],
-      metaTitle: plan.meta_title || plan.title || keyword.keyword,
-      metaDescription: plan.meta_description || "",
-      internalLinks: JSON.stringify(plan.internal_link_suggestions || [], null, 2),
-      externalSources: JSON.stringify(plan.external_source_suggestions || [], null, 2),
-      affiliateOpportunities: JSON.stringify(plan.affiliate_opportunities || [], null, 2),
+      targetWordCount: Number(normalizedPlan.target_word_count || 1800),
+      outline: normalizedPlan.outline || [],
+      faqs: normalizedPlan.faq || [],
+      metaTitle:
+        normalizedPlan.meta_title ||
+        normalizedPlan.title ||
+        keyword.keyword,
+      metaDescription: normalizedPlan.meta_description || "",
+      internalLinks: JSON.stringify(
+        normalizedPlan.internal_link_suggestions || [],
+        null,
+        2
+      ),
+      externalSources: JSON.stringify(
+        normalizedPlan.external_source_suggestions || [],
+        null,
+        2
+      ),
+      affiliateOpportunities: JSON.stringify(
+        normalizedPlan.affiliate_opportunities || [],
+        null,
+        2
+      ),
     });
 
     await markKeywordPlanned(keywordId);
 
     await completeJob(jobId, {
       articleId,
-      title: plan.title,
-      slug: plan.slug,
+      title: normalizedPlan.title,
+      slug: normalizedPlan.slug,
       prompt: promptMetadata,
       aiUsage,
     });
@@ -97,6 +119,64 @@ export async function generateArticlePlan(keywordId: string) {
     );
     throw error;
   }
+}
+
+function normalizePlanTemporalDrift({
+  plan,
+  keyword,
+}: {
+  plan: any;
+  keyword: string;
+}) {
+  if (containsExplicitYear(keyword)) {
+    return plan;
+  }
+
+  const currentYear = getCurrentContentYear();
+
+  return {
+    ...plan,
+    title: replaceStaleYears(plan.title, currentYear),
+    slug: replaceStaleYears(plan.slug, currentYear),
+    meta_title: replaceStaleYears(plan.meta_title, currentYear),
+    meta_description: replaceStaleYears(
+      plan.meta_description,
+      currentYear
+    ),
+  };
+}
+
+function containsExplicitYear(value: string) {
+  return /\b20\d{2}\b/.test(value);
+}
+
+function replaceStaleYears(
+  value: unknown,
+  currentYear: number
+) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.replace(/\b20\d{2}\b/g, (match) => {
+    const year = Number(match);
+
+    return year < currentYear ? String(currentYear) : match;
+  });
+}
+
+function getCurrentContentYear() {
+  const timeZone =
+    process.env.CONTENT_TIME_ZONE ||
+    process.env.TZ ||
+    "Asia/Yerevan";
+
+  return Number(
+    new Intl.DateTimeFormat("en", {
+      timeZone,
+      year: "numeric",
+    }).format(new Date())
+  );
 }
 
 function buildPromptMetadata(prompt: {

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getWordPressAuthHeader, getWordPressConfig } from "@/lib/wordpress";
 import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
+import { getUploadedFeaturedImageMediaId } from "@/services/featuredImageService";
 
 function markdownToBasicHtml(markdown: string) {
   return markdown
@@ -84,30 +85,14 @@ export async function publishArticleToWordPressDraft(
 
   try {
     const wp = getWordPressConfig();
-
-    const contentHtml = markdownToBasicHtml(
-      removeLeadingDuplicateTitle(
-        article.draft_markdown,
-        article.title
-      )
-    );
     const wordpressCategoryId =
       await resolveWordPressCategoryId(article);
     const yoastSeo = buildYoastSeoPayload(article);
-
-    const postPayload = {
-      title: article.title,
-      slug: article.slug,
-      status: "draft",
-      content: contentHtml,
-      excerpt: article.meta_description || "",
-      categories: wordpressCategoryId
-        ? [wordpressCategoryId]
-        : undefined,
-      featured_media: input.featuredMediaId ?? undefined,
-      comment_status: "closed",
-      ping_status: "closed",
-    };
+    const postPayload = await buildWordPressPostPayload({
+      article,
+      wordpressCategoryId,
+      featuredMediaId: input.featuredMediaId,
+    });
 
     const response = await createWordPressDraftPost({
       wpUrl: wp.url,
@@ -152,12 +137,130 @@ export async function publishArticleToWordPressDraft(
   }
 }
 
+export async function updateWordPressDraft(
+  articleId: string
+) {
+  const article: any = await getArticleById(articleId);
+
+  if (!article) {
+    throw new Error("Article not found.");
+  }
+
+  if (!article.wordpress_post_id) {
+    throw new Error("Article does not have a WordPress draft yet.");
+  }
+
+  if (article.status === "published") {
+    throw new Error("Published articles cannot be updated as drafts.");
+  }
+
+  if (!article.draft_markdown) {
+    throw new Error("Article has no draft_markdown.");
+  }
+
+  const jobId = await createJob({
+    siteId: article.site_id,
+    jobType: "wordpress_draft",
+    relatedArticleId: article.id,
+    inputData: {
+      action: "update_wordpress_draft",
+      title: article.title,
+      slug: article.slug,
+      wordpressPostId: Number(article.wordpress_post_id),
+      category: article.categories?.name ?? null,
+    },
+  });
+
+  try {
+    const wp = getWordPressConfig();
+    const wordpressCategoryId =
+      await resolveWordPressCategoryId(article);
+    const yoastSeo = buildYoastSeoPayload(article);
+    const featuredMediaId =
+      await getUploadedFeaturedImageMediaId(article.id);
+    const postPayload = await buildWordPressPostPayload({
+      article,
+      wordpressCategoryId,
+      featuredMediaId,
+      status: "draft",
+    });
+
+    const response = await updateWordPressDraftPost({
+      wpUrl: wp.url,
+      wordpressPostId: Number(article.wordpress_post_id),
+      payload: postPayload,
+      yoastSeo,
+    });
+    const result = await response.json();
+
+    await db.query(
+      `
+      UPDATE articles
+      SET wordpress_draft_url = COALESCE(?, wordpress_draft_url),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+      `,
+      [result.link || null, article.id]
+    );
+
+    await completeJob(jobId, {
+      action: "update_wordpress_draft",
+      wordpressPostId: result.id,
+      wordpressDraftUrl: result.link,
+      wordpressCategoryId,
+      featuredMediaId,
+      commentStatus: "closed",
+      yoastSeo,
+    });
+
+    return {
+      wordpressPostId: result.id,
+      wordpressDraftUrl: result.link,
+    };
+  } catch (error: any) {
+    await failJob(
+      jobId,
+      error.message || "WordPress draft update failed."
+    );
+    throw error;
+  }
+}
+
+async function buildWordPressPostPayload(input: {
+  article: any;
+  wordpressCategoryId: number | null;
+  featuredMediaId?: number | null;
+  status?: "draft";
+}) {
+  const contentHtml = markdownToBasicHtml(
+    removeLeadingDuplicateTitle(
+      input.article.draft_markdown,
+      input.article.title
+    )
+  );
+
+  return {
+    title: input.article.title,
+    slug: input.article.slug,
+    status: input.status ?? "draft",
+    content: contentHtml,
+    excerpt: input.article.meta_description || "",
+    categories: input.wordpressCategoryId
+      ? [input.wordpressCategoryId]
+      : undefined,
+    featured_media: input.featuredMediaId ?? undefined,
+    comment_status: "closed",
+    ping_status: "closed",
+  };
+}
+
 async function createWordPressDraftPost(input: {
   wpUrl: string;
   payload: Record<string, unknown>;
   yoastSeo: ReturnType<typeof buildYoastSeoPayload>;
 }) {
-  const response = await postWordPressDraft(input.wpUrl, {
+  const endpoint = `${input.wpUrl}/wp-json/wp/v2/posts`;
+  const response = await postWordPressDraft(endpoint, {
     ...input.payload,
     meta: {
       _yoast_wpseo_title: input.yoastSeo.title,
@@ -176,8 +279,48 @@ async function createWordPressDraftPost(input: {
     throw new Error(`WordPress error: ${response.status} ${errorText}`);
   }
 
+  const fallbackResponse = await postWordPressDraft(endpoint, input.payload);
+
+  if (!fallbackResponse.ok) {
+    const fallbackErrorText = await fallbackResponse.text();
+    throw new Error(
+      `WordPress error: ${fallbackResponse.status} ${fallbackErrorText}`
+    );
+  }
+
+  return fallbackResponse;
+}
+
+async function updateWordPressDraftPost(input: {
+  wpUrl: string;
+  wordpressPostId: number;
+  payload: Record<string, unknown>;
+  yoastSeo: ReturnType<typeof buildYoastSeoPayload>;
+}) {
+  const response = await postWordPressDraft(
+    `${input.wpUrl}/wp-json/wp/v2/posts/${input.wordpressPostId}`,
+    {
+      ...input.payload,
+      meta: {
+        _yoast_wpseo_title: input.yoastSeo.title,
+        _yoast_wpseo_metadesc: input.yoastSeo.description,
+        _yoast_wpseo_focuskw: input.yoastSeo.focusKeyword,
+      },
+    }
+  );
+
+  if (response.ok) {
+    return response;
+  }
+
+  const errorText = await response.text();
+
+  if (!isProtectedMetaError(errorText)) {
+    throw new Error(`WordPress error: ${response.status} ${errorText}`);
+  }
+
   const fallbackResponse = await postWordPressDraft(
-    input.wpUrl,
+    `${input.wpUrl}/wp-json/wp/v2/posts/${input.wordpressPostId}`,
     input.payload
   );
 
@@ -192,10 +335,10 @@ async function createWordPressDraftPost(input: {
 }
 
 async function postWordPressDraft(
-  wpUrl: string,
+  endpoint: string,
   payload: Record<string, unknown>
 ) {
-  return fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
+  return fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: getWordPressAuthHeader(),

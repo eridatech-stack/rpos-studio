@@ -81,6 +81,8 @@ WordPress draft creation resolves the RPOS article category to a WordPress categ
 
 Draft content strips a generated leading title heading before upload because WordPress renders the post title separately. Draft creation also sends Yoast SEO meta fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, `_yoast_wpseo_focuskw`) when WordPress accepts them through REST; if protected meta is rejected, the draft is still created and the intended SEO payload is recorded in the WordPress job output.
 
+After a WordPress draft exists, article pages can sync the latest local Markdown, title, slug, excerpt, category, featured image media ID, comments setting, pings setting, and Yoast SEO payload back to the same WordPress draft post.
+
 ## Multi-site direction
 
 New automation endpoints and dashboard logic should be site-aware.

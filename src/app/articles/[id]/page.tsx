@@ -7,6 +7,7 @@ import { GenerateFeaturedImageButton } from "@/components/GenerateFeaturedImageB
 import { PublishApprovedArticleButton } from "@/components/PublishApprovedArticleButton";
 import { PublishWordPressButton } from "@/components/PublishWordPressButton";
 import { QualityReviewChecklist } from "@/components/QualityReviewChecklist";
+import { UpdateWordPressDraftButton } from "@/components/UpdateWordPressDraftButton";
 import {
   isQualityReviewPassed,
   parseQualityReview,
@@ -297,7 +298,10 @@ function ArticleActions({
     return (
       <>
         {article.wordpress_post_id && (
-          <GenerateFeaturedImageButton articleId={article.id} />
+          <>
+            <UpdateWordPressDraftButton articleId={article.id} />
+            <GenerateFeaturedImageButton articleId={article.id} />
+          </>
         )}
 
         <ApproveArticleButton
@@ -312,7 +316,10 @@ function ArticleActions({
     return (
       <>
         {article.wordpress_post_id && (
-          <GenerateFeaturedImageButton articleId={article.id} />
+          <>
+            <UpdateWordPressDraftButton articleId={article.id} />
+            <GenerateFeaturedImageButton articleId={article.id} />
+          </>
         )}
 
         <PublishApprovedArticleButton

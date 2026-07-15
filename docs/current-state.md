@@ -68,6 +68,7 @@ The Keyword Library no longer starts content production. Production starts in th
 ### WordPress
 
 - create WordPress draft
+- update existing WordPress draft after local edits or media changes
 - map RPOS article category to WordPress category during draft creation
 - disable comments and pings on WordPress drafts
 - strip duplicate leading title from WordPress draft content

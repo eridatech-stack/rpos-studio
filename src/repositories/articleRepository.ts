@@ -181,8 +181,65 @@ function isArticleSlugUniqueError(error: unknown) {
   return prismaError.code === "P2002";
 }
 
-export async function getArticles() {
+export async function getArticles(input: {
+  query?: string;
+} = {}) {
+  const query = input.query?.trim();
+
   return prisma.articles.findMany({
+    where: query
+      ? {
+          OR: [
+            {
+              title: {
+                contains: query,
+              },
+            },
+            {
+              slug: {
+                contains: query,
+              },
+            },
+            {
+              meta_title: {
+                contains: query,
+              },
+            },
+            {
+              meta_description: {
+                contains: query,
+              },
+            },
+            {
+              editor_notes: {
+                contains: query,
+              },
+            },
+            {
+              keywords: {
+                keyword: {
+                  contains: query,
+                },
+              },
+            },
+            {
+              categories: {
+                name: {
+                  contains: query,
+                },
+              },
+            },
+            {
+              topic_clusters: {
+                name: {
+                  contains: query,
+                },
+              },
+            },
+            ...articleEnumSearchFilters(query),
+          ],
+        }
+      : undefined,
     orderBy: { created_at: "desc" },
     include: {
       categories: true,
@@ -190,6 +247,53 @@ export async function getArticles() {
       keywords: true,
     },
   });
+}
+
+function articleEnumSearchFilters(query: string) {
+  const normalized = query.toLowerCase().replaceAll(" ", "_");
+  const filters: any[] = [];
+  const enumValuesByField: Record<string, string[]> = {
+    article_type: [
+      "pillar",
+      "cluster",
+      "faq",
+      "review",
+      "comparison",
+      "news",
+      "how_to",
+    ],
+    intent: [
+      "informational",
+      "commercial",
+      "transactional",
+      "navigational",
+    ],
+    status: [
+      "idea",
+      "approved",
+      "outline_ready",
+      "draft_ready",
+      "seo_ready",
+      "image_ready",
+      "wordpress_draft",
+      "human_review",
+      "published",
+      "needs_update",
+      "archived",
+    ],
+  };
+
+  for (const [field, values] of Object.entries(enumValuesByField)) {
+    if (!values.includes(normalized)) {
+      continue;
+    }
+
+    filters.push({
+      [field]: normalized,
+    });
+  }
+
+  return filters;
 }
 
 export async function getArticleById(articleId: string) {

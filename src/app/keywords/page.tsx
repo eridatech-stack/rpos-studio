@@ -9,8 +9,18 @@ import {
   StatusChip,
 } from "@/components/ui";
 
-export default async function KeywordsPage() {
-  const keywords: any[] = await getKeywords();
+export default async function KeywordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const query = params.q?.trim() || "";
+  const keywords: any[] = await getKeywords({
+    query,
+  });
 
   return (
     <AppShell>
@@ -27,6 +37,55 @@ export default async function KeywordsPage() {
             </Link>
           }
         />
+
+        <Card className="mb-6">
+          <form
+            action="/keywords"
+            className="flex flex-col gap-3 md:flex-row md:items-end"
+          >
+            <label className="flex-1">
+              <span className="text-sm font-semibold text-slate-500">
+                Search keywords
+              </span>
+
+              <input
+                type="search"
+                name="q"
+                defaultValue={query}
+                placeholder="Search keyword, category, cluster, status, notes..."
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white transition hover:bg-blue-700"
+              >
+                Search
+              </button>
+
+              {query && (
+                <Link
+                  href="/keywords"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Clear
+                </Link>
+              )}
+            </div>
+          </form>
+
+          {query && (
+            <div className="mt-3 text-sm text-slate-500">
+              Showing {keywords.length} result
+              {keywords.length === 1 ? "" : "s"} for{" "}
+              <span className="font-semibold text-slate-700">
+                {query}
+              </span>
+            </div>
+          )}
+        </Card>
 
         <Card className="overflow-hidden p-0">
           {keywords.length > 0 ? (
@@ -110,8 +169,12 @@ export default async function KeywordsPage() {
             <div className="p-6">
               <EmptyState
                 icon="🔑"
-                title="No keywords yet"
-                description="Import keywords or use Developer Tools to seed approved keyword opportunities."
+                title={query ? "No matching keywords" : "No keywords yet"}
+                description={
+                  query
+                    ? "Try a different keyword, category, cluster, status, or note search."
+                    : "Import keywords or use Developer Tools to seed approved keyword opportunities."
+                }
               />
             </div>
           )}

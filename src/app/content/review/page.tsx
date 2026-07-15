@@ -6,6 +6,7 @@ import {
   isQualityReviewPassed,
   parseQualityReview,
 } from "@/modules/editorial/qualityReview";
+import { parseAutomatedReview } from "@/modules/editorial/automatedReview";
 import {
   Card,
   EmptyState,
@@ -63,6 +64,9 @@ export default async function ReviewQueuePage() {
             const qualityReviewPassed = isQualityReviewPassed(
               parseQualityReview(article.editor_notes)
             );
+            const automatedReview = parseAutomatedReview(
+              article.editor_notes
+            );
 
             return (
             <Card key={article.id}>
@@ -115,6 +119,15 @@ export default async function ReviewQueuePage() {
                         qualityReviewPassed
                           ? "Complete"
                           : "Incomplete"
+                      }
+                    />
+
+                    <Info
+                      label="Automated Review"
+                      value={
+                        automatedReview
+                          ? `${automatedReview.score}%`
+                          : "Not run"
                       }
                     />
                   </div>

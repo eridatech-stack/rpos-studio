@@ -9,8 +9,18 @@ import {
   StatusChip,
 } from "@/components/ui";
 
-export default async function ArticlesPage() {
-  const articles: any[] = await getArticles();
+export default async function ArticlesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const query = params.q?.trim() || "";
+  const articles: any[] = await getArticles({
+    query,
+  });
 
   return (
     <AppShell>
@@ -19,6 +29,55 @@ export default async function ArticlesPage() {
           title="Articles"
           subtitle="Review article plans, drafts, WordPress content, and published articles."
         />
+
+        <Card className="mb-6">
+          <form
+            action="/articles"
+            className="flex flex-col gap-3 md:flex-row md:items-end"
+          >
+            <label className="flex-1">
+              <span className="text-sm font-semibold text-slate-500">
+                Search articles
+              </span>
+
+              <input
+                type="search"
+                name="q"
+                defaultValue={query}
+                placeholder="Search title, keyword, category, status, SEO text..."
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white transition hover:bg-blue-700"
+              >
+                Search
+              </button>
+
+              {query && (
+                <Link
+                  href="/articles"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Clear
+                </Link>
+              )}
+            </div>
+          </form>
+
+          {query && (
+            <div className="mt-3 text-sm text-slate-500">
+              Showing {articles.length} result
+              {articles.length === 1 ? "" : "s"} for{" "}
+              <span className="font-semibold text-slate-700">
+                {query}
+              </span>
+            </div>
+          )}
+        </Card>
 
         <Card className="overflow-hidden p-0">
           {articles.length > 0 ? (
@@ -104,8 +163,12 @@ export default async function ArticlesPage() {
             <div className="p-6">
               <EmptyState
                 icon="📝"
-                title="No articles yet"
-                description="Queue approved keywords in the Production Center to generate your first articles."
+                title={query ? "No matching articles" : "No articles yet"}
+                description={
+                  query
+                    ? "Try a different title, keyword, category, status, or SEO search."
+                    : "Queue approved keywords in the Production Center to generate your first articles."
+                }
               />
             </div>
           )}

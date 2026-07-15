@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ApproveArticleButton } from "@/components/ApproveArticleButton";
+import { AutomatedReviewCard } from "@/components/AutomatedReviewCard";
 import { DraftEditor } from "@/components/DraftEditor";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { GenerateFeaturedImageButton } from "@/components/GenerateFeaturedImageButton";
@@ -12,6 +13,7 @@ import {
   isQualityReviewPassed,
   parseQualityReview,
 } from "@/modules/editorial/qualityReview";
+import { parseAutomatedReview } from "@/modules/editorial/automatedReview";
 import { getArticleById } from "@/repositories/articleRepository";
 import {
   Card,
@@ -51,6 +53,7 @@ export default async function ArticleDetailPage({
 
   const qualityReview = parseQualityReview(article.editor_notes);
   const qualityReviewPassed = isQualityReviewPassed(qualityReview);
+  const automatedReview = parseAutomatedReview(article.editor_notes);
 
   return (
     <AppShell>
@@ -256,12 +259,21 @@ export default async function ArticleDetailPage({
             {(article.status === "wordpress_draft" ||
               article.status === "human_review" ||
               article.status === "approved") && (
-              <Card>
-                <QualityReviewChecklist
-                  articleId={article.id}
-                  initialReview={qualityReview}
-                />
-              </Card>
+              <>
+                <Card>
+                  <AutomatedReviewCard
+                    articleId={article.id}
+                    review={automatedReview}
+                  />
+                </Card>
+
+                <Card>
+                  <QualityReviewChecklist
+                    articleId={article.id}
+                    initialReview={qualityReview}
+                  />
+                </Card>
+              </>
             )}
 
             <FeaturedImageCard article={article} />

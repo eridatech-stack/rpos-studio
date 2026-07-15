@@ -7,8 +7,43 @@ import type {
   keywords_status,
 } from "@prisma/client";
 
-export async function getKeywords() {
+export async function getKeywords(input: {
+  query?: string;
+} = {}) {
+  const query = input.query?.trim();
+
   return prisma.keywords.findMany({
+    where: query
+      ? {
+          OR: [
+            {
+              keyword: {
+                contains: query,
+              },
+            },
+            {
+              notes: {
+                contains: query,
+              },
+            },
+            {
+              categories: {
+                name: {
+                  contains: query,
+                },
+              },
+            },
+            {
+              topic_clusters: {
+                name: {
+                  contains: query,
+                },
+              },
+            },
+            ...enumSearchFilters(query),
+          ],
+        }
+      : undefined,
     orderBy: [
       { opportunity_score: "desc" },
       { created_at: "desc" },
@@ -18,6 +53,58 @@ export async function getKeywords() {
       topic_clusters: true,
     },
   });
+}
+
+function enumSearchFilters(query: string) {
+  const normalized = query.toLowerCase().replaceAll(" ", "_");
+  const filters: any[] = [];
+  const enumValuesByField: Record<string, string[]> = {
+    intent: [
+      "informational",
+      "commercial",
+      "transactional",
+      "navigational",
+    ],
+    article_type: [
+      "pillar",
+      "cluster",
+      "faq",
+      "review",
+      "comparison",
+      "news",
+      "how_to",
+    ],
+    priority: ["high", "medium", "low"],
+    status: [
+      "new",
+      "approved",
+      "planned",
+      "used",
+      "rejected",
+      "needs_review",
+    ],
+    content_stage: [
+      "keyword",
+      "planned",
+      "outlined",
+      "drafted",
+      "review",
+      "published",
+    ],
+    created_by: ["manual", "ai", "import", "api"],
+  };
+
+  for (const [field, values] of Object.entries(enumValuesByField)) {
+    if (!values.includes(normalized)) {
+      continue;
+    }
+
+    filters.push({
+      [field]: normalized,
+    });
+  }
+
+  return filters;
 }
 
 export async function getKeywordById(keywordId: string) {

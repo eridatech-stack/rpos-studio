@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { saveArticleQualityReview } from "@/modules/editorial/repository";
-import type { QualityReviewChecks } from "@/modules/editorial/qualityReview";
+import {
+  normalizeHumanReviewNotes,
+  type QualityReviewChecks,
+} from "@/modules/editorial/qualityReview";
 
 const checkKeys: Array<keyof QualityReviewChecks> = [
   "draftReviewed",
@@ -27,8 +30,7 @@ export async function POST(request: Request) {
     }
 
     const checks = normalizeChecks(body.checks);
-    const notes =
-      typeof body.notes === "string" ? body.notes.trim() : "";
+    const notes = normalizeHumanReviewNotes(body.notes).trim();
 
     await saveArticleQualityReview(body.articleId, {
       checks,

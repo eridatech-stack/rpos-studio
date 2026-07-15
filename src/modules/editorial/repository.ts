@@ -1,8 +1,12 @@
 import { db } from "@/lib/db";
+import { getArticleById } from "@/repositories/articleRepository";
+import {
+  buildAutomatedReview,
+  mergeEditorNotes,
+} from "@/modules/editorial/automatedReview";
 import {
   isQualityReviewPassed,
   parseQualityReview,
-  serializeQualityReview,
   type QualityReviewChecks,
 } from "@/modules/editorial/qualityReview";
 
@@ -92,11 +96,26 @@ export async function saveArticleQualityReview(
     notes: string;
   }
 ) {
-  const editorNotes = serializeQualityReview({
-    checks: input.checks,
-    notes: input.notes,
-    updatedAt: new Date().toISOString(),
-  });
+  const [articleRows]: any = await db.query(
+    `
+    SELECT editor_notes
+    FROM articles
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [articleId]
+  );
+
+  const editorNotes = mergeEditorNotes(
+    articleRows[0]?.editor_notes,
+    {
+      qualityReview: {
+        checks: input.checks,
+        notes: input.notes,
+        updatedAt: new Date().toISOString(),
+      },
+    }
+  );
 
   const [result]: any = await db.query(
     `
@@ -115,6 +134,43 @@ export async function saveArticleQualityReview(
       "Article was not found or cannot be quality-reviewed in its current status."
     );
   }
+}
+
+export async function runAutomatedArticleReview(articleId: string) {
+  const article = await getArticleById(articleId);
+
+  if (!article) {
+    throw new Error("Article not found.");
+  }
+
+  if (!article.draft_markdown) {
+    throw new Error("Article has no draft content to review.");
+  }
+
+  const automatedReview = buildAutomatedReview(article);
+  const editorNotes = mergeEditorNotes(article.editor_notes, {
+    automatedReview,
+  });
+
+  const [result]: any = await db.query(
+    `
+    UPDATE articles
+    SET
+      editor_notes = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+      AND status IN ('draft_ready', 'wordpress_draft', 'human_review', 'approved')
+    `,
+    [editorNotes, articleId]
+  );
+
+  if (result.affectedRows === 0) {
+    throw new Error(
+      "Article was not found or cannot be reviewed in its current status."
+    );
+  }
+
+  return automatedReview;
 }
 
 export async function getPublishingQueue() {

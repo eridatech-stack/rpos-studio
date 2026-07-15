@@ -24,7 +24,14 @@ export async function renderPrompt(
   }
 
   if (shouldIncludeTemporalContext(promptKey)) {
-    text = `${temporalContext.instruction}\n\n${text}`;
+    text = [
+      temporalContext.instruction,
+      getPromptSpecificInstruction(promptKey),
+      "",
+      text,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   return {
@@ -37,6 +44,14 @@ export async function renderPrompt(
     temperature: Number(prompt.temperature),
     outputFormat: prompt.output_format,
   };
+}
+
+function getPromptSpecificInstruction(promptKey: string) {
+  if (promptKey === "article_plan") {
+    return "SEO constraint: return meta_title between 35 and 65 characters. Prefer clear, natural wording over stuffing keywords.";
+  }
+
+  return "";
 }
 
 function shouldIncludeTemporalContext(promptKey: string) {

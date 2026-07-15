@@ -68,6 +68,12 @@ Prompt rendering returns prompt version metadata. Outline and draft jobs store t
 
 Prompt rendering also injects current date context into article planning, article drafting, and featured-image prompt generation. The default content timezone is `Asia/Yerevan` and can be overridden with `CONTENT_TIME_ZONE`. Prompt text can use `{{current_date}}`, `{{current_year}}`, `{{content_time_zone}}`, and `{{date_context}}`.
 
+Article planning also enforces SEO meta title length at generation time. The plan prompt asks for `meta_title` between 35 and 65 characters, and the article plan normalizer trims overlong generated meta titles at word boundaries before saving.
+
+## Quality controls
+
+Manual quality review remains the publishing gate. Automated review is available on article detail pages and stores deterministic SEO, readability, link, and featured-image findings in `articles.editor_notes.automatedReview`. Saving the manual checklist preserves automated review results.
+
 ## WordPress architecture
 
 Use the WordPress REST API for:

@@ -43,12 +43,12 @@
 
 - [x] Manual quality checklist before publishing approval
 - [x] Store quality review notes locally
-- [ ] SEO review
-- [ ] readability checks
-- [ ] internal-link suggestions
+- [x] SEO review
+- [x] readability checks
+- [x] internal-link suggestions
 - [ ] duplicate-content checks
 - [ ] factual review workflow
-- [ ] image alt-text review
+- [x] image alt-text review
 - [ ] automated publication eligibility rules
 
 ## Phase 5 — Scale and analytics

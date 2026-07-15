@@ -84,6 +84,7 @@ The Keyword Library no longer starts content production. Production starts in th
 
 - Editorial Review Queue
 - Quality checklist required before approval for publishing
+- Automated SEO/readability/link/image review saved with editorial notes
 - Approve for Publishing
 - Publish Queue
 - Publish Now

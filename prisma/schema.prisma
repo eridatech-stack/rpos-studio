@@ -111,31 +111,32 @@ model jobs {
 }
 
 model keywords {
-  id                String                  @id @default(dbgenerated("(uuid())")) @db.Char(36)
-  site_id           String                  @db.Char(36)
-  category_id       String?                 @db.Char(36)
-  cluster_id        String?                 @db.Char(36)
-  keyword           String                  @db.VarChar(255)
-  intent            keywords_intent?
-  search_volume     Int?                    @default(0)
-  difficulty        Int?
-  cpc               Decimal?                @db.Decimal(10, 2)
-  opportunity_score Int?
-  priority          keywords_priority?      @default(medium)
-  status            keywords_status?        @default(new)
-  related_keywords  String?                 @db.Text
-  notes             String?                 @db.Text
-  created_at        DateTime?               @default(now()) @db.DateTime(0)
-  updated_at        DateTime?               @default(now()) @db.DateTime(0)
-  article_type      keywords_article_type?  @default(cluster)
-  content_stage     keywords_content_stage? @default(keyword)
-  created_by        keywords_created_by?    @default(manual)
-  articles          articles[]
-  jobs              jobs[]
-  sites             sites                   @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keywords_ibfk_1")
-  categories        categories?             @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_2")
-  topic_clusters    topic_clusters?         @relation(fields: [cluster_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_3")
-  production_runs   production_runs[]
+  id                 String                  @id @default(dbgenerated("(uuid())")) @db.Char(36)
+  site_id            String                  @db.Char(36)
+  category_id        String?                 @db.Char(36)
+  cluster_id         String?                 @db.Char(36)
+  keyword            String                  @db.VarChar(255)
+  intent             keywords_intent?
+  search_volume      Int?                    @default(0)
+  difficulty         Int?
+  cpc                Decimal?                @db.Decimal(10, 2)
+  opportunity_score  Int?
+  priority           keywords_priority?      @default(medium)
+  status             keywords_status?        @default(new)
+  related_keywords   String?                 @db.Text
+  notes              String?                 @db.Text
+  created_at         DateTime?               @default(now()) @db.DateTime(0)
+  updated_at         DateTime?               @default(now()) @db.DateTime(0)
+  article_type       keywords_article_type?  @default(cluster)
+  content_stage      keywords_content_stage? @default(keyword)
+  created_by         keywords_created_by?    @default(manual)
+  articles           articles[]
+  jobs               jobs[]
+  keyword_pack_items keyword_pack_items[]
+  sites              sites                   @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keywords_ibfk_1")
+  categories         categories?             @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_2")
+  topic_clusters     topic_clusters?         @relation(fields: [cluster_id], references: [id], onUpdate: NoAction, map: "keywords_ibfk_3")
+  production_runs    production_runs[]
 
   @@unique([site_id, keyword], map: "unique_keyword")
   @@index([category_id], map: "category_id")
@@ -231,6 +232,7 @@ model sites {
   categories       categories[]
   images           images[]
   jobs             jobs[]
+  keyword_packs    keyword_packs[]
   keywords         keywords[]
   performance      performance[]
   production_runs  production_runs[]
@@ -239,6 +241,130 @@ model sites {
   revenue          revenue[]
   topic_clusters   topic_clusters[]
   workflows        workflows[]
+}
+
+model keyword_packs {
+  id                      String                        @id @db.Char(36)
+  site_id                 String                        @db.Char(36)
+  name                    String                        @db.VarChar(255)
+  niche                   String                        @db.VarChar(500)
+  target_language         String?                       @db.VarChar(100)
+  target_countries        Json?
+  audience                String?                       @db.Text
+  business_goal           String?                       @db.Text
+  monetization_model      String?                       @db.Text
+  excluded_topics         String?                       @db.Text
+  preferred_categories    String?                       @db.Text
+  brand_notes             String?                       @db.Text
+  generation_mode         keyword_packs_generation_mode @default(balanced)
+  requested_keyword_count Int
+  status                  keyword_packs_status          @default(draft)
+  progress_percent        Int                           @default(0)
+  current_step            String?                       @db.VarChar(100)
+  error_message           String?                       @db.Text
+  created_by              String?                       @db.VarChar(100)
+  created_at              DateTime                      @default(now()) @db.DateTime(0)
+  started_at              DateTime?                     @db.DateTime(0)
+  finished_at             DateTime?                     @db.DateTime(0)
+  updated_at              DateTime                      @default(now()) @db.DateTime(0)
+  keyword_pack_categories keyword_pack_categories[]
+  keyword_pack_clusters   keyword_pack_clusters[]
+  keyword_pack_events     keyword_pack_events[]
+  keyword_pack_items      keyword_pack_items[]
+  sites                   sites                         @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_packs_site_fk")
+
+  @@index([site_id, status, created_at], map: "idx_keyword_packs_site_status_created")
+  @@index([site_id, niche], map: "idx_keyword_packs_site_niche")
+}
+
+model keyword_pack_categories {
+  id                    String                     @id @db.Char(36)
+  keyword_pack_id       String                     @db.Char(36)
+  name                  String                     @db.VarChar(255)
+  slug                  String                     @db.VarChar(255)
+  description           String?                    @db.Text
+  priority              keywords_priority          @default(medium)
+  sort_order            Int                        @default(0)
+  status                keyword_pack_review_status @default(pending)
+  created_at            DateTime                   @default(now()) @db.DateTime(0)
+  keyword_packs         keyword_packs              @relation(fields: [keyword_pack_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_categories_pack_fk")
+  keyword_pack_clusters keyword_pack_clusters[]
+  keyword_pack_items    keyword_pack_items[]
+
+  @@unique([keyword_pack_id, slug], map: "unique_keyword_pack_category_slug")
+  @@index([keyword_pack_id, sort_order], map: "idx_keyword_pack_categories_pack_order")
+}
+
+model keyword_pack_clusters {
+  id                      String                     @id @db.Char(36)
+  keyword_pack_id         String                     @db.Char(36)
+  category_id             String                     @db.Char(36)
+  name                    String                     @db.VarChar(255)
+  slug                    String                     @db.VarChar(255)
+  description             String?                    @db.Text
+  pillar_keyword          String?                    @db.VarChar(255)
+  pillar_title            String?                    @db.VarChar(500)
+  sort_order              Int                        @default(0)
+  status                  keyword_pack_review_status @default(pending)
+  created_at              DateTime                   @default(now()) @db.DateTime(0)
+  keyword_pack_categories keyword_pack_categories    @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_clusters_category_fk")
+  keyword_packs           keyword_packs              @relation(fields: [keyword_pack_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_clusters_pack_fk")
+  keyword_pack_items      keyword_pack_items[]
+
+  @@unique([keyword_pack_id, slug], map: "unique_keyword_pack_cluster_slug")
+  @@index([keyword_pack_id, sort_order], map: "idx_keyword_pack_clusters_pack_order")
+  @@index([category_id], map: "idx_keyword_pack_clusters_category")
+}
+
+model keyword_pack_items {
+  id                      String                     @id @db.Char(36)
+  keyword_pack_id         String                     @db.Char(36)
+  category_id             String                     @db.Char(36)
+  cluster_id              String                     @db.Char(36)
+  keyword                 String                     @db.VarChar(255)
+  suggested_title         String?                    @db.VarChar(500)
+  intent                  keywords_intent            @default(informational)
+  article_type            keywords_article_type      @default(cluster)
+  priority                keywords_priority          @default(medium)
+  estimated_search_volume Int?
+  estimated_difficulty    Int?
+  ai_opportunity_score    Int?
+  is_pillar               Boolean                    @default(false)
+  parent_pillar_item_id   String?                    @db.Char(36)
+  related_item_ids_json   Json?
+  notes                   String?                    @db.Text
+  review_status           keyword_pack_review_status @default(pending)
+  existing_keyword_id     String?                    @db.Char(36)
+  created_at              DateTime                   @default(now()) @db.DateTime(0)
+  updated_at              DateTime                   @default(now()) @db.DateTime(0)
+  keyword_pack_categories keyword_pack_categories    @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_items_category_fk")
+  keyword_pack_clusters   keyword_pack_clusters      @relation(fields: [cluster_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_items_cluster_fk")
+  keywords                keywords?                  @relation(fields: [existing_keyword_id], references: [id], onUpdate: NoAction, map: "keyword_pack_items_existing_keyword_fk")
+  keyword_packs           keyword_packs              @relation(fields: [keyword_pack_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_items_pack_fk")
+  parent_pillar_item      keyword_pack_items?        @relation("keyword_pack_item_parent", fields: [parent_pillar_item_id], references: [id], onUpdate: NoAction, map: "keyword_pack_items_parent_pillar_fk")
+  supporting_items        keyword_pack_items[]       @relation("keyword_pack_item_parent")
+
+  @@unique([keyword_pack_id, keyword], map: "unique_keyword_pack_item_keyword")
+  @@index([keyword_pack_id, review_status], map: "idx_keyword_pack_items_pack_review")
+  @@index([keyword_pack_id, cluster_id], map: "idx_keyword_pack_items_pack_cluster")
+  @@index([parent_pillar_item_id], map: "idx_keyword_pack_items_parent_pillar")
+  @@index([existing_keyword_id], map: "idx_keyword_pack_items_existing_keyword")
+  @@index([category_id], map: "keyword_pack_items_category_fk")
+  @@index([cluster_id], map: "keyword_pack_items_cluster_fk")
+}
+
+model keyword_pack_events {
+  id              String        @id @db.Char(36)
+  keyword_pack_id String        @db.Char(36)
+  event_type      String        @db.VarChar(100)
+  status          String?       @db.VarChar(50)
+  message         String        @db.VarChar(1000)
+  details_json    Json?
+  created_at      DateTime      @default(now()) @db.DateTime(0)
+  keyword_packs   keyword_packs @relation(fields: [keyword_pack_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "keyword_pack_events_pack_fk")
+
+  @@index([keyword_pack_id, created_at], map: "idx_keyword_pack_events_pack_created")
+  @@index([event_type], map: "idx_keyword_pack_events_type")
 }
 
 model topic_clusters {
@@ -378,6 +504,34 @@ enum jobs_job_type {
   generate_draft
   seo_review
   wordpress_draft
+}
+
+enum keyword_packs_generation_mode {
+  balanced
+  low_competition
+  high_traffic
+  commercial
+  informational
+}
+
+enum keyword_packs_status {
+  draft
+  queued
+  running
+  ready_for_review
+  importing
+  completed
+  failed
+  cancelled
+}
+
+enum keyword_pack_review_status {
+  pending
+  approved
+  rejected
+  edited
+  imported
+  duplicate
 }
 
 enum images_type {

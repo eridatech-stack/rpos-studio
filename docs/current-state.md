@@ -24,6 +24,8 @@ keyword acquisition
 - Keyword Library
 - CSV keyword import
 - Developer Tools keyword seeder
+- AI Keyword Pack Generator
+- generated keyword-pack review and import workflow
 - category and topic-cluster mapping
 - intent, article type, priority, difficulty, search volume, and opportunity score
 - keyword edit page
@@ -54,6 +56,8 @@ The Keyword Library no longer starts content production. Production starts in th
 
 - article plan / outline generation
 - draft generation
+- staged keyword-pack generation for 50, 100, 250, 500, or 1,000 keyword plans
+- keyword-pack categories, topic clusters, pillar items, supporting items, validation, and internal-link planning
 - prompt rendering
 - current date context is injected into production prompts
 - Prompt Studio
@@ -94,6 +98,8 @@ The Keyword Library no longer starts content production. Production starts in th
 
 - AppShell sidebar and top bar
 - shared UI components
+- Keyword Pack Generator
+- Keyword Packs list and detail review workspace
 - metric cards
 - cards
 - status chips
@@ -125,6 +131,22 @@ Approved keyword
 → article appears in Editorial Review Queue
 ```
 
+## Current keyword-pack flow
+
+```text
+User creates keyword pack draft
+→ user queues generation
+→ keyword-pack worker claims queued pack
+→ strategy / categories / clusters / keyword chunks
+→ validation and duplicate detection
+→ internal-link planning
+→ user reviews, edits, approves, or rejects generated items
+→ user imports approved items into categories, topic_clusters, and keywords
+→ imported keywords appear in Keyword Library and can later be queued from Production Center
+```
+
+Keyword-pack generation and import do not automatically start article production.
+
 ## Important cleanup already completed
 
 Removed or retired:
@@ -149,20 +171,42 @@ The valid production path is keyword-driven and asynchronous.
 
 ## Immediate work remaining
 
-### 1. n8n workflow wiring
+### 1. Keyword-pack generator hardening
+
+Implemented:
+
+- dedicated keyword-pack schema and SQL migration
+- prompt keys for staged keyword-pack generation
+- standalone keyword-pack worker command
+- create/list/detail/start/retry/cancel/review/edit/import APIs
+- generator page, packs list, detail progress, timeline, and review table
+- duplicate reporting and import result summary
+- import status choice for `needs_review` or `approved`
+- validation tests for normalization, duplicates, excluded topics, parent pillar assignment, and pack-size enforcement
+
+Remaining hardening:
+
+- apply the SQL migration to the local database and regenerate Prisma
+- seed the keyword-pack Prompt Studio prompt versions in each environment
+- manually run a small 50-keyword pack through worker generation and import
+- add broader repository/API tests once the project has a larger test harness
+
+### 2. n8n workflow wiring
 
 n8n can call protected RPOS endpoints to queue approved keywords and request production summaries.
 
 Implemented:
 
 - bearer-token automation authentication via `AUTOMATION_SECRET`
+- keyword opportunity import endpoint for scheduled SEO-data refreshes
 - queue-approved-keywords endpoint
 - production summary endpoint
 - active and daily queue limits
 - notification-ready summary text
 - operating runbook in `docs/n8n-automation.md`
+- importable starter workflow in `docs/n8n-workflows/rpos-keyword-production-automation.json`
 
-### 2. Featured-image hardening
+### 3. Featured-image hardening
 
 Implemented target flow:
 
@@ -181,7 +225,7 @@ Remaining hardening:
 - add quality review controls
 - add richer image approval/rejection controls
 
-### 3. n8n automation workflow
+### 4. n8n automation workflow
 
 n8n should:
 
@@ -192,6 +236,8 @@ n8n should:
 - send success/failure summary
 
 RPOS should remain responsible for queue state, worker execution, retries, event history, and WordPress publishing state.
+
+The repository includes a starter workflow template. A live n8n instance still needs environment configuration, manual test execution, provider-specific keyword-source mapping, and activation.
 
 ### 5. Human publishing control
 

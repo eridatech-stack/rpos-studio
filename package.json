@@ -6,8 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "tsx --test tests/keyword-pack-validation.test.ts",
     "lint": "next lint",
-    "worker:production": "tsx scripts/production-worker.ts"
+    "worker:production": "tsx scripts/production-worker.ts",
+    "worker:keyword-packs": "tsx scripts/keyword-pack-worker.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

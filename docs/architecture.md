@@ -16,6 +16,22 @@ Standalone production worker
 OpenAI + WordPress
 ```
 
+Keyword-pack generation follows the same durable-queue principle with a separate worker:
+
+```text
+Keyword Pack UI
+        ↓
+Keyword Pack API routes
+        ↓
+keyword_packs + draft category / cluster / item tables
+        ↓
+Standalone keyword-pack worker
+        ↓
+OpenAI staged generation
+        ↓
+human review and explicit import into live keyword tables
+```
+
 ## Main layers
 
 - `src/app`: Next.js pages and API routes
@@ -40,6 +56,25 @@ The worker claims queued work using a transaction and:
 ```sql
 FOR UPDATE SKIP LOCKED
 ```
+
+`keyword_packs` is the durable queue for AI keyword-pack generation. The keyword-pack worker claims queued packs with the same transactional locking pattern, writes timeline events to `keyword_pack_events`, and stores generated categories, clusters, and items in draft tables until a user explicitly imports approved items.
+
+Keyword-pack generation is intentionally separate from article production. Importing approved keyword-pack items creates or matches live `categories`, `topic_clusters`, and `keywords`, but it does not enqueue production runs.
+
+## Keyword-pack generator
+
+The generator uses staged OpenAI calls rather than one large response:
+
+- strategy
+- categories
+- topic clusters
+- keyword chunks
+- validation and shortfall filling
+- internal-link relationship planning
+
+Generated SEO metrics are AI estimates only. Duplicate detection compares generated items inside the pack and existing live keywords for the selected site. Existing live keyword matches are flagged as duplicates and skipped during import.
+
+The import workflow is idempotent at the live keyword level because it checks the existing `site_id + keyword` uniqueness before inserting. Users choose whether newly imported approved keywords become `needs_review` or `approved`; the default is `needs_review`.
 
 ## Production observability
 
@@ -69,6 +104,8 @@ Prompt rendering returns prompt version metadata. Outline and draft jobs store t
 Prompt rendering also injects current date context into article planning, article drafting, and featured-image prompt generation. The default content timezone is `Asia/Yerevan` and can be overridden with `CONTENT_TIME_ZONE`. Prompt text can use `{{current_date}}`, `{{current_year}}`, `{{content_time_zone}}`, and `{{date_context}}`.
 
 Article planning also enforces SEO meta title length at generation time. The plan prompt asks for `meta_title` between 35 and 65 characters, and the article plan normalizer trims overlong generated meta titles at word boundaries before saving.
+
+Keyword-pack generation uses Prompt Studio keys for strategy, categories, clusters, items, validation, gap filling, and internal links. The worker records timeline events around generation stages and keeps the design open for future SEO-data providers.
 
 ## Quality controls
 
@@ -103,6 +140,8 @@ Before n8n integration:
 - do not expose unrestricted queue endpoints publicly
 
 Current automation endpoints use `AUTOMATION_SECRET` as a bearer token and require a caller-provided `siteId`.
+
+Keyword opportunity imports can be posted to the protected automation API as provider-neutral JSON. New keywords default to `needs_review`, existing keywords are matched by the existing `site_id + keyword` unique key, and refreshes update metrics without deleting old keyword records.
 
 Automation queueing is guarded by:
 

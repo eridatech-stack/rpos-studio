@@ -5,6 +5,7 @@ export type AutomatedReviewFinding = {
   label: string;
   severity: AutomatedReviewSeverity;
   message: string;
+  suggestion?: string;
 };
 
 export type AutomatedReviewState = {
@@ -39,7 +40,12 @@ export function parseAutomatedReview(
   return null;
 }
 
-export function buildAutomatedReview(article: any): AutomatedReviewState {
+export function buildAutomatedReview(
+  article: any,
+  input: {
+    internalLinkCandidates?: InternalLinkCandidate[];
+  } = {}
+): AutomatedReviewState {
   const markdown = String(article.draft_markdown || "");
   const keyword = String(article.keywords?.keyword || "").trim();
   const metaTitle = String(article.meta_title || "");
@@ -52,8 +58,8 @@ export function buildAutomatedReview(article: any): AutomatedReviewState {
     sentenceCount > 0 ? wordCount / sentenceCount : 0;
   const h2Count = (markdown.match(/^##\s+/gm) || []).length;
   const findings: AutomatedReviewFinding[] = [
-    reviewMetaTitle(metaTitle || title),
-    reviewMetaDescription(metaDescription),
+    reviewMetaTitle(metaTitle || title, title, keyword),
+    reviewMetaDescription(metaDescription, title, keyword),
     reviewKeywordPresence({
       keyword,
       title,
@@ -64,7 +70,10 @@ export function buildAutomatedReview(article: any): AutomatedReviewState {
     reviewWordCount(wordCount),
     reviewHeadings(h2Count),
     reviewReadability(averageWordsPerSentence),
-    reviewInternalLinks(article.internal_links),
+    reviewInternalLinks(
+      article.internal_links,
+      input.internalLinkCandidates || []
+    ),
     reviewExternalSources(article.external_sources),
     reviewFeaturedImage(article.images),
   ];
@@ -121,31 +130,51 @@ function parseEditorNotesPayload(editorNotes: string | null | undefined) {
   }
 }
 
-function reviewMetaTitle(value: string): AutomatedReviewFinding {
+type InternalLinkCandidate = {
+  title: string;
+  slug: string;
+  url: string | null;
+};
+
+function reviewMetaTitle(
+  value: string,
+  title: string,
+  keyword: string
+): AutomatedReviewFinding {
   const length = value.trim().length;
 
   if (length >= 35 && length <= 65) {
     return pass("metaTitle", "Meta title", `${length} characters.`);
   }
 
+  const suggestion = buildMetaTitleSuggestion(title, keyword);
+
   return warning(
     "metaTitle",
     "Meta title",
-    `Meta title is ${length} characters; aim for 35-65.`
+    `Meta title is ${length} characters; aim for 35-65.`,
+    suggestion
   );
 }
 
-function reviewMetaDescription(value: string): AutomatedReviewFinding {
+function reviewMetaDescription(
+  value: string,
+  title: string,
+  keyword: string
+): AutomatedReviewFinding {
   const length = value.trim().length;
 
   if (length >= 120 && length <= 160) {
     return pass("metaDescription", "Meta description", `${length} characters.`);
   }
 
+  const suggestion = buildMetaDescriptionSuggestion(title, keyword);
+
   return warning(
     "metaDescription",
     "Meta description",
-    `Meta description is ${length} characters; aim for 120-160.`
+    `Meta description is ${length} characters; aim for 120-160.`,
+    suggestion
   );
 }
 
@@ -230,16 +259,33 @@ function reviewReadability(
   );
 }
 
-function reviewInternalLinks(value: string | null): AutomatedReviewFinding {
+function reviewInternalLinks(
+  value: string | null,
+  candidates: InternalLinkCandidate[]
+): AutomatedReviewFinding {
   const links = parseJsonArray(value);
 
-  return links.length > 0
-    ? pass("internalLinks", "Internal links", `${links.length} suggestions.`)
-    : warning(
-        "internalLinks",
-        "Internal links",
-        "No internal link suggestions found."
-      );
+  if (links.length > 0) {
+    return pass("internalLinks", "Internal links", `${links.length} suggestions.`);
+  }
+
+  const suggestion =
+    candidates.length > 0
+      ? candidates
+          .slice(0, 3)
+          .map((candidate) => {
+            const href = candidate.url || `/${candidate.slug}`;
+            return `${candidate.title} (${href})`;
+          })
+          .join("; ")
+      : "Add 2-3 links to related published articles once available.";
+
+  return warning(
+    "internalLinks",
+    "Internal links",
+    "No internal link suggestions found.",
+    suggestion
+  );
 }
 
 function reviewExternalSources(value: string | null): AutomatedReviewFinding {
@@ -272,7 +318,8 @@ function reviewFeaturedImage(images: any[]): AutomatedReviewFinding {
   return warning(
     "featuredImage",
     "Featured image",
-    "Featured image is missing, not uploaded, or lacks alt text."
+    "Featured image is missing, not uploaded, or lacks alt text.",
+    "Generate or upload a featured image, then confirm the alt text describes the article topic."
   );
 }
 
@@ -305,14 +352,58 @@ function pass(
 function warning(
   key: string,
   label: string,
-  message: string
+  message: string,
+  suggestion?: string
 ): AutomatedReviewFinding {
   return {
     key,
     label,
     severity: "warning",
     message,
+    suggestion,
   };
+}
+
+function buildMetaTitleSuggestion(title: string, keyword: string) {
+  const source = title || keyword;
+  const compact = source.replace(/\s+/g, " ").trim();
+
+  if (compact.length >= 35 && compact.length <= 65) {
+    return compact;
+  }
+
+  const suffix = keyword ? `: ${keyword}` : "";
+  const expanded = `${compact}${suffix}`.trim();
+
+  if (expanded.length >= 35 && expanded.length <= 65) {
+    return expanded;
+  }
+
+  return trimToLength(expanded || compact, 65);
+}
+
+function buildMetaDescriptionSuggestion(title: string, keyword: string) {
+  const topic = keyword || title;
+  const suggestion = `Compare practical options for ${topic}, including key features, limits, and how to choose the right fit for your workflow.`;
+
+  return trimToLength(suggestion, 160);
+}
+
+function trimToLength(value: string, limit: number) {
+  const words = value.split(/\s+/);
+  let output = "";
+
+  for (const word of words) {
+    const next = output ? `${output} ${word}` : word;
+
+    if (next.length > limit) {
+      break;
+    }
+
+    output = next;
+  }
+
+  return output || value.slice(0, limit).trim();
 }
 
 function stripMarkdown(value: string) {

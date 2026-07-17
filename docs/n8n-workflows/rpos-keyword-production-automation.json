@@ -1,0 +1,266 @@
+{
+  "name": "RPOS Keyword Production Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const siteId = $env.RPOS_SITE_ID;\n\nif (!siteId) {\n  throw new Error('RPOS_SITE_ID is required.');\n}\n\n// Replace this sample block with your SEO provider output mapping.\n// Keep one item per keyword opportunity.\nconst opportunities = [\n  {\n    keyword: 'best free task management apps',\n    categorySlug: 'productivity',\n    clusterSlug: 'task-management',\n    intent: 'commercial',\n    articleType: 'comparison',\n    priority: 'high',\n    searchVolume: 5400,\n    difficulty: 38,\n    cpc: 2.15,\n    opportunityScore: 87,\n    relatedKeywords: [\n      'free project management software',\n      'best todo list app'\n    ],\n    source: 'n8n sample'\n  }\n];\n\nreturn [\n  {\n    json: {\n      siteId,\n      defaultStatus: 'needs_review',\n      updateExistingStatus: false,\n      opportunities\n    }\n  }\n];"
+      },
+      "id": "build-keyword-opportunity-payload",
+      "name": "Build Keyword Opportunity Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.RPOS_BASE_URL + '/api/automation/import-keyword-opportunities'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.RPOS_AUTOMATION_SECRET}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "import-keyword-opportunities",
+      "name": "Import Keyword Opportunities",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueLimit = Number($env.RPOS_QUEUE_LIMIT || 3);\n\nreturn [\n  {\n    json: {\n      siteId: $env.RPOS_SITE_ID,\n      limit: Number.isFinite(queueLimit) && queueLimit > 0 ? queueLimit : 3,\n      importResult: $json\n    }\n  }\n];"
+      },
+      "id": "build-queue-request",
+      "name": "Build Queue Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.RPOS_BASE_URL + '/api/automation/queue-approved-keywords'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.RPOS_AUTOMATION_SECRET}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({ siteId: $json.siteId, limit: $json.limit })}}",
+        "options": {}
+      },
+      "id": "queue-approved-keywords",
+      "name": "Queue Approved Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "id": "wait-for-worker",
+      "name": "Wait For Worker",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        340,
+        0
+      ],
+      "webhookId": "rpos-wait-for-worker"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.RPOS_BASE_URL + '/api/automation/production-summary'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.RPOS_AUTOMATION_SECRET}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({ siteId: $env.RPOS_SITE_ID })}}",
+        "options": {}
+      },
+      "id": "production-summary",
+      "name": "Production Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const notification = $json.notification || {};\n\nreturn [\n  {\n    json: {\n      status: notification.status || 'unknown',\n      title: notification.title || 'RPOS production summary',\n      text: notification.text || JSON.stringify($json, null, 2),\n      summary: $json.summary || null\n    }\n  }\n];"
+      },
+      "id": "format-notification",
+      "name": "Format Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Build Keyword Opportunity Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Keyword Opportunity Payload": {
+      "main": [
+        [
+          {
+            "node": "Import Keyword Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Import Keyword Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Build Queue Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Queue Request": {
+      "main": [
+        [
+          {
+            "node": "Queue Approved Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Approved Keywords": {
+      "main": [
+        [
+          {
+            "node": "Wait For Worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Worker": {
+      "main": [
+        [
+          {
+            "node": "Production Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Production Summary": {
+      "main": [
+        [
+          {
+            "node": "Format Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rpos-keyword-production-automation-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "RPOS"
+    }
+  ]
+}

@@ -147,7 +147,33 @@ export async function runAutomatedArticleReview(articleId: string) {
     throw new Error("Article has no draft content to review.");
   }
 
-  const automatedReview = buildAutomatedReview(article);
+  const [internalLinkCandidates]: any = await db.query(
+    `
+    SELECT
+      title,
+      slug,
+      published_url,
+      wordpress_draft_url
+    FROM articles
+    WHERE site_id = ?
+      AND id <> ?
+      AND status IN ('published', 'approved', 'wordpress_draft', 'human_review')
+    ORDER BY
+      CASE WHEN category_id = ? THEN 0 ELSE 1 END,
+      updated_at DESC,
+      created_at DESC
+    LIMIT 6
+    `,
+    [article.site_id, article.id, article.category_id]
+  );
+
+  const automatedReview = buildAutomatedReview(article, {
+    internalLinkCandidates: internalLinkCandidates.map((candidate: any) => ({
+      title: candidate.title,
+      slug: candidate.slug,
+      url: candidate.published_url || candidate.wordpress_draft_url || null,
+    })),
+  });
   const editorNotes = mergeEditorNotes(article.editor_notes, {
     automatedReview,
   });

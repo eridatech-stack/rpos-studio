@@ -135,6 +135,7 @@ function normalizeArticlePlan({
   const metaDescription = containsExplicitYear(keyword)
     ? plan.meta_description
     : replaceStaleYears(plan.meta_description, currentYear);
+  const normalizedTitle = title || keyword;
 
   return {
     ...plan,
@@ -143,11 +144,16 @@ function normalizeArticlePlan({
       ? plan.slug
       : replaceStaleYears(plan.slug, currentYear),
     meta_title: normalizeMetaTitle(
-      metaTitleSource || title || keyword,
-      title || keyword,
+      metaTitleSource || normalizedTitle,
+      normalizedTitle,
       keyword
     ),
-    meta_description: metaDescription,
+    meta_description: normalizeMetaDescription(
+      metaDescription,
+      normalizedTitle,
+      keyword
+    ),
+    target_word_count: normalizeTargetWordCount(plan.target_word_count),
   };
 }
 
@@ -177,6 +183,63 @@ function normalizeMetaTitle(
   return fallback.length <= 65
     ? fallback
     : trimToCharacterLimit(fallback, 65);
+}
+
+function normalizeMetaDescription(
+  value: unknown,
+  titleFallback: string,
+  keywordFallback: string
+) {
+  const raw =
+    typeof value === "string" && value.trim()
+      ? value
+      : `Explore ${titleFallback || keywordFallback} with practical tips, clear comparisons, and useful guidance to help you choose the next best step.`;
+  const compact = raw.replace(/\s+/g, " ").trim();
+
+  if (compact.length >= 120 && compact.length <= 160) {
+    return compact;
+  }
+
+  if (compact.length > 160) {
+    const trimmed = trimToCharacterLimit(compact, 160);
+    return trimmed.length >= 120
+      ? trimmed
+      : buildMetaDescriptionFallback(titleFallback, keywordFallback);
+  }
+
+  return buildMetaDescriptionFallback(titleFallback, keywordFallback);
+}
+
+function buildMetaDescriptionFallback(
+  titleFallback: string,
+  keywordFallback: string
+) {
+  const subject = titleFallback || keywordFallback;
+  const options = [
+    `Explore ${subject} with practical tips, clear comparisons, and useful guidance to help you choose the right next step with confidence.`,
+    `Learn how to evaluate ${subject} with practical guidance, simple examples, and clear next steps for better decisions.`,
+    `Compare ${subject} with practical guidance, key considerations, and clear next steps to help you plan with confidence.`,
+  ];
+
+  const match = options.find(
+    (option) => option.length >= 120 && option.length <= 160
+  );
+
+  if (match) {
+    return match;
+  }
+
+  return trimToCharacterLimit(options[0], 160);
+}
+
+function normalizeTargetWordCount(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 1800;
+  }
+
+  return Math.max(1600, Math.min(2200, Math.round(parsed)));
 }
 
 function trimToCharacterLimit(value: string, limit: number) {

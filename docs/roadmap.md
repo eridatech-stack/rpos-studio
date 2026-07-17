@@ -31,13 +31,33 @@
 ## Phase 3 — n8n automation
 
 - [x] protected automation authentication
+- [x] protected keyword opportunity import endpoint
 - [x] queue-approved-keywords endpoint
 - [x] per-site queue limit
 - [x] active and daily automation queue limits
-- [ ] scheduled n8n workflow
+- [x] scheduled n8n workflow template
+- [ ] live n8n workflow activation
 - [x] production summary endpoint
 - [x] notification-ready summary response
 - [x] operating runbook
+
+## Phase 3.5 — Keyword Pack Generator
+
+- [x] keyword-pack schema and versioned SQL migration
+- [x] Prompt Studio seeds for keyword-pack generation prompts
+- [x] staged OpenAI generation service
+- [x] standalone keyword-pack worker
+- [x] create/list/detail/start/retry/cancel APIs
+- [x] review/edit/import APIs
+- [x] generator page
+- [x] packs list page
+- [x] pack detail review workspace
+- [x] progress and event timeline
+- [x] duplicate reporting
+- [x] import status choice for needs-review or approved keywords
+- [x] validation test coverage for core keyword-pack rules
+- [ ] manual 50-keyword end-to-end generation/import test after local migration is applied
+- [ ] broader repository/API tests
 
 ## Phase 4 — Quality controls
 

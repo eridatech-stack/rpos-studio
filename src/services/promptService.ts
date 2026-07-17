@@ -48,7 +48,35 @@ export async function renderPrompt(
 
 function getPromptSpecificInstruction(promptKey: string) {
   if (promptKey === "article_plan") {
-    return "SEO constraint: return meta_title between 35 and 65 characters. Prefer clear, natural wording over stuffing keywords.";
+    return [
+      "SEO constraints:",
+      "return meta_title between 35 and 65 characters;",
+      "return meta_description between 120 and 160 characters;",
+      "set target_word_count to about 1800 words;",
+      "create an outline with one H1 article title and multiple H2 section headings;",
+      "prefer clear, natural wording over stuffing keywords.",
+    ].join(" ");
+  }
+
+  if (promptKey === "article_draft") {
+    return [
+      "Draft structure constraints:",
+      "write about 1800 words unless the outline explicitly requires a different length;",
+      "start the Markdown draft with exactly one H1 using '# {{title}}';",
+      "use multiple H2 sections with '##' headings for scan-friendly structure;",
+      "do not use repeated H1 headings after the opening title;",
+      "make the body comprehensive, practical, and naturally optimized for the primary keyword.",
+    ].join(" ");
+  }
+
+  if (promptKey.startsWith("keyword_pack_")) {
+    return [
+      "Keyword-pack freshness constraints:",
+      "generate evergreen or current-year keyword ideas unless the user explicitly requested historical coverage;",
+      "do not create keyword phrases, titles, categories, or clusters framed around past years;",
+      "avoid stale year modifiers such as 2024 or 2025 for current recommendations, comparisons, lists, or buying guides;",
+      "when a year is useful, use {{current_year}} as the current year.",
+    ].join(" ");
   }
 
   return "";
@@ -59,7 +87,7 @@ function shouldIncludeTemporalContext(promptKey: string) {
     "article_plan",
     "article_draft",
     "featured_image",
-  ].includes(promptKey);
+  ].includes(promptKey) || promptKey.startsWith("keyword_pack_");
 }
 
 function getTemporalContext() {

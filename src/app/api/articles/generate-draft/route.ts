@@ -9,7 +9,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "articleId is required." }, { status: 400 });
     }
 
-    const articleId = await generateArticleDraft(body.articleId);
+    const articleId = await generateArticleDraft(body.articleId, {
+      regenerate: body.regenerate === true,
+    });
 
     return NextResponse.json({
       success: true,

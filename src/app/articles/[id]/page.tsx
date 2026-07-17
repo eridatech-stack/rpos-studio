@@ -299,7 +299,10 @@ function ArticleActions({
 
   if (article.status === "draft_ready") {
     return (
-      <PublishWordPressButton articleId={article.id} />
+      <>
+        <GenerateDraftButton articleId={article.id} regenerate />
+        <PublishWordPressButton articleId={article.id} />
+      </>
     );
   }
 
@@ -311,6 +314,7 @@ function ArticleActions({
       <>
         {article.wordpress_post_id && (
           <>
+            <GenerateDraftButton articleId={article.id} regenerate />
             <UpdateWordPressDraftButton articleId={article.id} />
             <GenerateFeaturedImageButton articleId={article.id} />
           </>
@@ -329,6 +333,7 @@ function ArticleActions({
       <>
         {article.wordpress_post_id && (
           <>
+            <GenerateDraftButton articleId={article.id} regenerate />
             <UpdateWordPressDraftButton articleId={article.id} />
             <GenerateFeaturedImageButton articleId={article.id} />
           </>

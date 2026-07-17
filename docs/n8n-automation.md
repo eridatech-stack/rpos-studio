@@ -7,6 +7,7 @@ Use n8n to queue approved RPOS keywords on a schedule and send a production summ
 RPOS remains responsible for:
 
 - keyword selection
+- keyword opportunity dedupe and refresh
 - queue limits
 - production run state
 - worker execution
@@ -23,6 +24,25 @@ AUTOMATION_DAILY_QUEUE_LIMIT=25
 
 `AUTOMATION_SECRET` is sent by n8n as a bearer token.
 
+## Required n8n environment
+
+Configure these in n8n before activating the workflow:
+
+```env
+RPOS_BASE_URL=https://your-rpos-domain.com
+RPOS_SITE_ID=SITE_UUID
+RPOS_AUTOMATION_SECRET=same-value-as-rpos-automation-secret
+RPOS_QUEUE_LIMIT=3
+```
+
+An importable starter workflow is available at:
+
+```text
+docs/n8n-workflows/rpos-keyword-production-automation.json
+```
+
+Import it into n8n, replace the sample keyword payload node with your SEO provider mapping, test manually, then activate the schedule.
+
 ## Endpoint authentication
 
 Every n8n HTTP Request node must send:
@@ -33,6 +53,64 @@ Content-Type: application/json
 ```
 
 Use an n8n environment variable or credential for the secret. Do not hardcode it into workflow nodes.
+
+## Import keyword opportunities
+
+```http
+POST https://your-rpos-domain.com/api/automation/import-keyword-opportunities
+```
+
+Body:
+
+```json
+{
+  "siteId": "SITE_UUID",
+  "defaultStatus": "needs_review",
+  "updateExistingStatus": false,
+  "opportunities": [
+    {
+      "keyword": "best free task management apps",
+      "categorySlug": "productivity",
+      "clusterSlug": "task-management",
+      "intent": "commercial",
+      "articleType": "comparison",
+      "priority": "high",
+      "searchVolume": 5400,
+      "difficulty": 38,
+      "cpc": 2.15,
+      "opportunityScore": 87,
+      "relatedKeywords": [
+        "free project management software",
+        "best todo list app"
+      ],
+      "source": "DataForSEO"
+    }
+  ]
+}
+```
+
+Behavior:
+
+- bearer-token authentication is required
+- request size is capped at 500 opportunities
+- new keywords default to `needs_review`
+- existing keywords are matched by `siteId + keyword`
+- existing keyword metrics are refreshed without changing status unless `updateExistingStatus` is `true`
+- no keywords are deleted by this endpoint
+
+Successful response:
+
+```json
+{
+  "success": true,
+  "total": 1,
+  "inserted": 1,
+  "updated": 0,
+  "skipped": 0,
+  "errors": [],
+  "message": "Imported 1 new keyword(s), refreshed 0, skipped 0."
+}
+```
 
 ## Queue approved keywords
 
@@ -161,22 +239,37 @@ Example:
    - Run hourly or daily.
    - Start conservatively, such as once per day.
 
-2. HTTP Request: Queue approved keywords
+2. HTTP Request: Fetch keyword opportunities
+   - Use your SEO provider, Google Trends workflow, or another keyword source.
+   - Normalize each item into the import body above.
+   - The starter workflow uses a Code node with one sample opportunity. Replace that node when a real provider is connected.
+
+3. HTTP Request: Import keyword opportunities
+   - Method: `POST`
+   - URL: `/api/automation/import-keyword-opportunities`
+   - Send bearer token header.
+   - Body: `{ "siteId": "...", "defaultStatus": "needs_review", "opportunities": [...] }`
+
+4. Optional human review
+   - Review `needs_review` keywords in RPOS.
+   - Approve only the keywords that should enter production.
+
+5. HTTP Request: Queue approved keywords
    - Method: `POST`
    - URL: `/api/automation/queue-approved-keywords`
    - Send bearer token header.
    - Body: `{ "siteId": "...", "limit": 3 }`
 
-3. Wait
+6. Wait
    - Optional, 1-5 minutes.
    - Lets the worker claim queued runs before summary.
 
-4. HTTP Request: Production summary
+7. HTTP Request: Production summary
    - Method: `POST`
    - URL: `/api/automation/production-summary`
    - Same bearer token header.
 
-5. Notification node
+8. Notification node
    - Use `notification.title` as subject/title.
    - Use `notification.text` as the message body.
    - If `notification.status` is `attention_required`, send to a higher-priority channel.
@@ -184,6 +277,7 @@ Example:
 ## Operating guidance
 
 - Keep final publication manual.
+- Keep imported keyword opportunities as `needs_review` until the topic sourcing is trusted.
 - Start with `limit: 1` or `limit: 3`.
 - Increase only after review quality is stable.
 - Watch `/production/runs` after first automation runs.

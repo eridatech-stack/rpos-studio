@@ -87,6 +87,13 @@ export function AutomatedReviewCard({
                 <div className="mt-1 text-slate-500">
                   {finding.message}
                 </div>
+
+                {finding.suggestion ? (
+                  <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800">
+                    <span className="font-semibold">Suggested fix: </span>
+                    {finding.suggestion}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

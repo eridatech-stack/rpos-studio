@@ -5,7 +5,12 @@ import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { buildTextAiUsage } from "@/services/aiUsage";
 import { renderPrompt } from "@/services/promptService";
 
-export async function generateArticleDraft(articleId: string) {
+export async function generateArticleDraft(
+  articleId: string,
+  options: {
+    regenerate?: boolean;
+  } = {}
+) {
   const article: any = await getArticleById(articleId);
   let promptMetadata:
     | ReturnType<typeof buildPromptMetadata>
@@ -13,6 +18,10 @@ export async function generateArticleDraft(articleId: string) {
 
   if (!article) {
     throw new Error("Article not found.");
+  }
+
+  if (article.status === "published") {
+    throw new Error("Published articles cannot be regenerated.");
   }
 
   const jobId = await createJob({
@@ -39,6 +48,7 @@ export async function generateArticleDraft(articleId: string) {
       category: article.categories?.name ?? "",
       cluster: article.topic_clusters?.name ?? "",
       target_word_count: article.target_word_count ?? 1800,
+      meta_description: article.meta_description ?? "",
       outline: outlineText,
     });
     promptMetadata = buildPromptMetadata(prompt);
@@ -56,21 +66,27 @@ export async function generateArticleDraft(articleId: string) {
     });
 
     const markdown = response.choices[0]?.message?.content || "";
+    const nextStatus = getNextDraftStatus({
+      currentStatus: article.status,
+      hasWordPressDraft: Boolean(article.wordpress_post_id),
+      regenerate: Boolean(options.regenerate),
+    });
 
     await db.query(
       `
       UPDATE articles
       SET draft_markdown = ?,
-          status = 'draft_ready',
+          status = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
       `,
-      [markdown, article.id]
+      [markdown, nextStatus, article.id]
     );
 
     await completeJob(jobId, {
       articleId: article.id,
-      status: "draft_ready",
+      status: nextStatus,
+      regenerated: Boolean(options.regenerate),
       prompt: promptMetadata,
       aiUsage,
     });
@@ -86,6 +102,27 @@ export async function generateArticleDraft(articleId: string) {
     );
     throw error;
   }
+}
+
+function getNextDraftStatus(input: {
+  currentStatus: string;
+  hasWordPressDraft: boolean;
+  regenerate: boolean;
+}) {
+  if (!input.regenerate) {
+    return "draft_ready";
+  }
+
+  if (
+    input.hasWordPressDraft ||
+    input.currentStatus === "wordpress_draft" ||
+    input.currentStatus === "human_review" ||
+    input.currentStatus === "approved"
+  ) {
+    return "human_review";
+  }
+
+  return "draft_ready";
 }
 
 function buildPromptMetadata(prompt: {

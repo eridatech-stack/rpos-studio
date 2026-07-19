@@ -60,6 +60,7 @@ export function buildImageAiUsage(input: {
   size: string;
   quality: string;
   outputFormat: string;
+  outputCompression?: number | null;
 }) {
   return {
     provider: "openai" as const,
@@ -68,6 +69,7 @@ export function buildImageAiUsage(input: {
     size: input.size,
     quality: input.quality,
     outputFormat: input.outputFormat,
+    outputCompression: input.outputCompression ?? null,
     promptTokens: null,
     completionTokens: null,
     totalTokens: null,

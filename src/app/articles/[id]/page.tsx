@@ -347,16 +347,32 @@ function ArticleActions({
   }
 
   if (article.status === "published") {
-    return article.published_url ? (
-      <a
-        href={article.published_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 font-semibold text-white transition hover:bg-green-700"
-      >
-        🌐 Open Live Article
-      </a>
-    ) : null;
+    return (
+      <>
+        <GenerateDraftButton
+          articleId={article.id}
+          regenerate
+          published
+        />
+        <UpdateWordPressDraftButton
+          articleId={article.id}
+          published
+        />
+        {article.wordpress_post_id && (
+          <GenerateFeaturedImageButton articleId={article.id} />
+        )}
+        {article.published_url ? (
+          <a
+            href={article.published_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 font-semibold text-white transition hover:bg-green-700"
+          >
+            🌐 Open Live Article
+          </a>
+        ) : null}
+      </>
+    );
   }
 
   return null;

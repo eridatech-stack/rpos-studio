@@ -5,9 +5,11 @@ import { AsyncActionButton } from "@/components/AsyncActionButton";
 export function GenerateDraftButton({
   articleId,
   regenerate = false,
+  published = false,
 }: {
   articleId: string;
   regenerate?: boolean;
+  published?: boolean;
 }) {
   return (
     <AsyncActionButton
@@ -23,6 +25,11 @@ export function GenerateDraftButton({
       }
       errorTitle="Draft generation failed"
       defaultErrorMessage="Failed to generate the article draft."
+      confirmMessage={
+        published
+          ? "Regenerate the local text for this published article? The live WordPress post will not change until you update it."
+          : undefined
+      }
       variant={regenerate ? "secondary" : "primary"}
     />
   );

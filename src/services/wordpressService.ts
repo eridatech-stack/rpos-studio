@@ -9,10 +9,26 @@ function markdownToBasicHtml(markdown: string) {
     .replace(/^### (.*$)/gim, "<h3>$1</h3>")
     .replace(/^## (.*$)/gim, "<h2>$1</h2>")
     .replace(/^# (.*$)/gim, "<h2>$1</h2>")
+    .replace(
+      /\[([^\]]+)]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/gim,
+      (_match, text, url) =>
+        `<a href="${escapeHtmlAttribute(url)}">${escapeHtml(text)}</a>`
+    )
     .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
     .replace(/\n\n/gim, "</p><p>")
     .replace(/^/, "<p>")
     .replace(/$/, "</p>");
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeHtmlAttribute(value: string) {
+  return escapeHtml(value).replace(/"/g, "&quot;");
 }
 
 function removeLeadingDuplicateTitle(markdown: string, title: string) {
@@ -150,10 +166,6 @@ export async function updateWordPressDraft(
     throw new Error("Article does not have a WordPress draft yet.");
   }
 
-  if (article.status === "published") {
-    throw new Error("Published articles cannot be updated as drafts.");
-  }
-
   if (!article.draft_markdown) {
     throw new Error("Article has no draft_markdown.");
   }
@@ -162,8 +174,11 @@ export async function updateWordPressDraft(
     siteId: article.site_id,
     jobType: "wordpress_draft",
     relatedArticleId: article.id,
-    inputData: {
-      action: "update_wordpress_draft",
+      inputData: {
+      action:
+        article.status === "published"
+          ? "update_wordpress_post"
+          : "update_wordpress_draft",
       title: article.title,
       slug: article.slug,
       wordpressPostId: Number(article.wordpress_post_id),
@@ -182,7 +197,10 @@ export async function updateWordPressDraft(
       article,
       wordpressCategoryId,
       featuredMediaId,
-      status: "draft",
+      status:
+        article.status === "published"
+          ? "publish"
+          : "draft",
     });
 
     const response = await updateWordPressDraftPost({
@@ -196,17 +214,33 @@ export async function updateWordPressDraft(
     await db.query(
       `
       UPDATE articles
-      SET wordpress_draft_url = COALESCE(?, wordpress_draft_url),
+      SET wordpress_draft_url =
+            CASE
+              WHEN status = 'published' THEN wordpress_draft_url
+              ELSE COALESCE(?, wordpress_draft_url)
+            END,
+          published_url =
+            CASE
+              WHEN status = 'published' THEN COALESCE(?, published_url)
+              ELSE published_url
+            END,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
       `,
-      [result.link || null, article.id]
+      [result.link || null, result.link || null, article.id]
     );
 
     await completeJob(jobId, {
-      action: "update_wordpress_draft",
+      action:
+        article.status === "published"
+          ? "update_wordpress_post"
+          : "update_wordpress_draft",
       wordpressPostId: result.id,
       wordpressDraftUrl: result.link,
+      publishedUrl:
+        article.status === "published"
+          ? result.link
+          : null,
       wordpressCategoryId,
       featuredMediaId,
       commentStatus: "closed",
@@ -230,7 +264,7 @@ async function buildWordPressPostPayload(input: {
   article: any;
   wordpressCategoryId: number | null;
   featuredMediaId?: number | null;
-  status?: "draft";
+  status?: "draft" | "publish";
 }) {
   const contentHtml = markdownToBasicHtml(
     removeLeadingDuplicateTitle(

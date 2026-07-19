@@ -136,25 +136,65 @@ function normalizeArticlePlan({
     ? plan.meta_description
     : replaceStaleYears(plan.meta_description, currentYear);
   const normalizedTitle = title || keyword;
+  const keywordAwareTitle = ensureKeywordInText(
+    normalizedTitle,
+    keyword,
+    120
+  );
+  const keywordAwareMetaTitle = ensureKeywordInText(
+    metaTitleSource || keywordAwareTitle,
+    keyword,
+    65
+  );
+  const keywordAwareMetaDescription = ensureKeywordInText(
+    metaDescription,
+    keyword,
+    160
+  );
 
   return {
     ...plan,
-    title,
+    title: keywordAwareTitle,
     slug: containsExplicitYear(keyword)
       ? plan.slug
-      : replaceStaleYears(plan.slug, currentYear),
+      : replaceStaleYears(plan.slug || safeSlug(keywordAwareTitle), currentYear),
     meta_title: normalizeMetaTitle(
-      metaTitleSource || normalizedTitle,
-      normalizedTitle,
+      keywordAwareMetaTitle,
+      keywordAwareTitle,
       keyword
     ),
     meta_description: normalizeMetaDescription(
-      metaDescription,
-      normalizedTitle,
+      keywordAwareMetaDescription,
+      keywordAwareTitle,
       keyword
     ),
     target_word_count: normalizeTargetWordCount(plan.target_word_count),
   };
+}
+
+function ensureKeywordInText(
+  value: unknown,
+  keyword: string,
+  maxLength: number
+) {
+  const text = typeof value === "string" ? value.trim() : "";
+  const cleanKeyword = keyword.trim();
+
+  if (!cleanKeyword) {
+    return text;
+  }
+
+  if (text.toLowerCase().includes(cleanKeyword.toLowerCase())) {
+    return text;
+  }
+
+  const combined = text
+    ? `${cleanKeyword}: ${text}`
+    : cleanKeyword;
+
+  return combined.length <= maxLength
+    ? combined
+    : trimToCharacterLimit(combined, maxLength);
 }
 
 function normalizeMetaTitle(

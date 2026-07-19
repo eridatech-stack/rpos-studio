@@ -300,6 +300,7 @@ export async function getArticleById(articleId: string) {
   const article: any = await prisma.articles.findUnique({
     where: { id: articleId },
     include: {
+      sites: true,
       categories: true,
       topic_clusters: true,
       keywords: true,

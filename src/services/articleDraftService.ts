@@ -3,6 +3,11 @@ import { getOpenAIClient } from "@/lib/openai";
 import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { buildTextAiUsage } from "@/services/aiUsage";
+import {
+  applyInternalLinksToMarkdown,
+  buildInternalLinkPromptText,
+  getResolvedInternalLinkSuggestions,
+} from "@/services/internalLinkService";
 import { renderPrompt } from "@/services/promptService";
 
 export async function generateArticleDraft(
@@ -18,10 +23,6 @@ export async function generateArticleDraft(
 
   if (!article) {
     throw new Error("Article not found.");
-  }
-
-  if (article.status === "published") {
-    throw new Error("Published articles cannot be regenerated.");
   }
 
   const jobId = await createJob({
@@ -41,6 +42,8 @@ export async function generateArticleDraft(
           `${section.section_order}. ${section.heading}\nPurpose: ${section.purpose}`
       )
       .join("\n\n");
+    const internalLinkSuggestions =
+      await getResolvedInternalLinkSuggestions(article);
 
     const prompt = await renderPrompt(article.site_id, "article_draft", {
       title: article.title,
@@ -49,6 +52,9 @@ export async function generateArticleDraft(
       cluster: article.topic_clusters?.name ?? "",
       target_word_count: article.target_word_count ?? 1800,
       meta_description: article.meta_description ?? "",
+      internal_links: buildInternalLinkPromptText(
+        internalLinkSuggestions
+      ),
       outline: outlineText,
     });
     promptMetadata = buildPromptMetadata(prompt);
@@ -65,7 +71,10 @@ export async function generateArticleDraft(
       usage: response.usage,
     });
 
-    const markdown = response.choices[0]?.message?.content || "";
+    const markdown = applyInternalLinksToMarkdown(
+      response.choices[0]?.message?.content || "",
+      internalLinkSuggestions
+    );
     const nextStatus = getNextDraftStatus({
       currentStatus: article.status,
       hasWordPressDraft: Boolean(article.wordpress_post_id),
@@ -89,6 +98,7 @@ export async function generateArticleDraft(
       regenerated: Boolean(options.regenerate),
       prompt: promptMetadata,
       aiUsage,
+      internalLinksApplied: internalLinkSuggestions.length,
     });
 
     return article.id;
@@ -111,6 +121,10 @@ function getNextDraftStatus(input: {
 }) {
   if (!input.regenerate) {
     return "draft_ready";
+  }
+
+  if (input.currentStatus === "published") {
+    return "published";
   }
 
   if (

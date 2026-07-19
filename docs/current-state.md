@@ -224,6 +224,7 @@ Remaining hardening:
 
 - add quality review controls
 - add richer image approval/rejection controls
+- add a CSV-driven repair tool for already-uploaded oversized WordPress images
 
 ### 4. n8n automation workflow
 

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { generateArticlePlan } from "@/services/articlePlanningService";
 import { generateArticleDraft } from "@/services/articleDraftService";
 import {
+  deleteReplacedWordPressMedia,
   generateAndUploadFeaturedImage,
   getUploadedFeaturedImageMediaId,
 } from "@/services/featuredImageService";
@@ -387,6 +388,9 @@ async function processRun(run: ClaimedRun) {
      * Step 3: Generate and upload featured image.
      */
     let featuredMediaId: number | null = null;
+    let replacedWordPressMediaIds: number[] = [];
+    let deletedWordPressMediaIds: number[] = [];
+    let wordpressMediaDeleteErrors: string[] = [];
 
     if (
       hasStep("featured_image") &&
@@ -423,6 +427,8 @@ async function processRun(run: ClaimedRun) {
 
       featuredMediaId =
         featuredImage.wordpressMediaId;
+      replacedWordPressMediaIds =
+        featuredImage.replacedWordPressMediaIds;
 
       await updateStep(
         run.id,
@@ -443,6 +449,8 @@ async function processRun(run: ClaimedRun) {
           fileUrl: featuredImage.fileUrl,
           wordpressMediaId:
             featuredImage.wordpressMediaId,
+          replacedWordPressMediaIds:
+            featuredImage.replacedWordPressMediaIds,
           altText: featuredImage.altText,
           aiUsage: featuredImage.aiUsage,
         },
@@ -493,6 +501,18 @@ async function processRun(run: ClaimedRun) {
           }
         );
 
+      if (featuredMediaId) {
+        const cleanup = await deleteReplacedWordPressMedia({
+          mediaIds: replacedWordPressMediaIds,
+          keepMediaId: featuredMediaId,
+        });
+
+        deletedWordPressMediaIds =
+          cleanup.deletedMediaIds;
+        wordpressMediaDeleteErrors =
+          cleanup.errors;
+      }
+
       await updateStep(
         run.id,
         "wordpress_draft",
@@ -513,6 +533,8 @@ async function processRun(run: ClaimedRun) {
           wordpressDraftUrl:
             wordpressResult.wordpressDraftUrl,
           featuredMediaId,
+          deletedWordPressMediaIds,
+          wordpressMediaDeleteErrors,
         },
       });
     }

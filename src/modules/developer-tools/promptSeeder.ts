@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 
-const featuredImagePrompt = `Create a realistic editorial featured image for a WordPress article.
+const featuredImagePrompt = `Create a realistic, human-feeling editorial photograph for a WordPress article.
 
-The image should look like professional magazine photography, not an illustration.
+The image must look like a believable photo captured by a real photographer, not an illustration or AI-styled stock graphic.
 
 Article title: {{title}}
 Primary keyword: {{keyword}}
@@ -12,12 +12,14 @@ Topic cluster: {{cluster}}
 Summary: {{meta_description}}
 
 Requirements:
-- natural photographic realism
-- believable lighting and real-world textures
-- clean composition with one clear subject
+- vary the visual concept, camera angle, setting, color palette, lighting, and subject treatment from article to article
+- natural photographic realism with subtle imperfections, lived-in environments, and real-world textures
+- use candid human presence when it genuinely fits the topic; people should have natural expressions, believable poses, realistic hands, and non-plastic skin
+- clean editorial composition with one clear subject or moment
+- use a plausible real location or practical object setup related to the article topic
 - suitable as a 3:2 WordPress featured image
 - no visible words, captions, signs, UI, logos, brand marks, or watermarks
-- avoid cartoon, 3D render, vector art, flat illustration, poster art, and surreal imagery`;
+- avoid cartoon, 3D render, vector art, flat illustration, poster art, glossy stock-photo sameness, synthetic faces, surreal imagery, and repeated generic laptop/desk scenes`;
 
 export async function seedFeaturedImagePrompt(
   siteDomain = "https://rithm.info"

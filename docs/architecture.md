@@ -89,7 +89,7 @@ The import workflow is idempotent at the live keyword level because it checks th
 
 The production worker generates featured images after draft generation and before WordPress draft creation.
 
-Generated image metadata is stored in `images`, the PNG is saved under `public/generated-images`, the file is uploaded to WordPress Media, and the returned media ID is set as `featured_media` when the WordPress draft is created.
+Generated image metadata is stored in `images`, the generated file is saved under `public/generated-images`, the file is uploaded to WordPress Media, and the returned media ID is set as `featured_media` when the WordPress draft is created. By default featured images use compressed WebP output (`OPENAI_IMAGE_OUTPUT_FORMAT=webp`, `OPENAI_IMAGE_OUTPUT_COMPRESSION=75`, `OPENAI_IMAGE_QUALITY=medium`) to avoid oversized WordPress media files. When a featured image is regenerated, previous WordPress media IDs recorded by RPOS for that article are deleted after the replacement media has been attached to the draft.
 
 Image generation records OpenAI model, size, quality, and output format in the production event details. It does not estimate image cost unless a future pricing source is added.
 

@@ -14,15 +14,12 @@ export async function PATCH(
     const body = await request.json();
     const patch = parseItemPatch(body);
 
-    await updateKeywordPackItem(id, itemId, {
-      ...patch,
-      reviewStatus: patch.reviewStatus || "edited",
-    });
+    await updateKeywordPackItem(id, itemId, patch);
 
     await addKeywordPackEvent({
       keywordPackId: id,
       eventType: "item_edited",
-      status: "edited",
+      status: patch.reviewStatus || null,
       message: "Keyword pack item edited.",
       details: {
         itemId,

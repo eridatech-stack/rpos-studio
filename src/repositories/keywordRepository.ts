@@ -9,41 +9,56 @@ import type {
 
 export async function getKeywords(input: {
   query?: string;
+  status?: keywords_status;
 } = {}) {
   const query = input.query?.trim();
+  const filters: any[] = [];
+
+  if (query) {
+    filters.push({
+      OR: [
+        {
+          keyword: {
+            contains: query,
+          },
+        },
+        {
+          notes: {
+            contains: query,
+          },
+        },
+        {
+          categories: {
+            name: {
+              contains: query,
+            },
+          },
+        },
+        {
+          topic_clusters: {
+            name: {
+              contains: query,
+            },
+          },
+        },
+        ...enumSearchFilters(query),
+      ],
+    });
+  }
+
+  if (input.status) {
+    filters.push({
+      status: input.status,
+    });
+  }
 
   return prisma.keywords.findMany({
-    where: query
-      ? {
-          OR: [
-            {
-              keyword: {
-                contains: query,
-              },
-            },
-            {
-              notes: {
-                contains: query,
-              },
-            },
-            {
-              categories: {
-                name: {
-                  contains: query,
-                },
-              },
-            },
-            {
-              topic_clusters: {
-                name: {
-                  contains: query,
-                },
-              },
-            },
-            ...enumSearchFilters(query),
-          ],
-        }
-      : undefined,
+    where:
+      filters.length > 0
+        ? {
+            AND: filters,
+          }
+        : undefined,
     orderBy: [
       { opportunity_score: "desc" },
       { created_at: "desc" },
@@ -51,6 +66,11 @@ export async function getKeywords(input: {
     include: {
       categories: true,
       topic_clusters: true,
+      _count: {
+        select: {
+          articles: true,
+        },
+      },
     },
   });
 }

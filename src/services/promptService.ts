@@ -19,10 +19,6 @@ export async function renderPrompt(
 
   let text = prompt.prompt_text;
 
-  for (const [key, value] of Object.entries(renderVariables)) {
-    text = text.replaceAll(`{{${key}}}`, String(value ?? ""));
-  }
-
   if (shouldIncludeTemporalContext(promptKey)) {
     text = [
       temporalContext.instruction,
@@ -32,6 +28,10 @@ export async function renderPrompt(
     ]
       .filter(Boolean)
       .join("\n");
+  }
+
+  for (const [key, value] of Object.entries(renderVariables)) {
+    text = text.replaceAll(`{{${key}}}`, String(value ?? ""));
   }
 
   return {
@@ -55,6 +55,7 @@ function getPromptSpecificInstruction(promptKey: string) {
       "set target_word_count to about 1800 words;",
       "create an outline with one H1 article title and multiple H2 section headings;",
       "prefer clear, natural wording over stuffing keywords.",
+      getReviewComparisonInstruction("plan"),
     ].join(" ");
   }
 
@@ -66,6 +67,7 @@ function getPromptSpecificInstruction(promptKey: string) {
       "use multiple H2 sections with '##' headings for scan-friendly structure;",
       "do not use repeated H1 headings after the opening title;",
       "make the body comprehensive, practical, and naturally optimized for the primary keyword.",
+      getReviewComparisonInstruction("draft"),
     ].join(" ");
   }
 
@@ -80,6 +82,25 @@ function getPromptSpecificInstruction(promptKey: string) {
   }
 
   return "";
+}
+
+function getReviewComparisonInstruction(stage: "plan" | "draft") {
+  const prefix =
+    "For comparison and review article types only, include";
+
+  if (stage === "plan") {
+    return [
+      prefix,
+      "outline sections for an 'Information verified on {{current_date}}' note, official product/source links, methodology, advantages and limitations, screenshot guidance where screenshots are permitted, sources, and a clear affiliate disclosure when affiliate opportunities may apply.",
+      "For external_source_suggestions, prefer official product pages, official documentation, pricing pages, support pages, or reputable primary sources.",
+    ].join(" ");
+  }
+
+  return [
+    prefix,
+    "an 'Information verified on {{current_date}}' note near the top, official product links where relevant, a methodology section, advantages and limitations, screenshot references only where permitted, a sources section, and a clear affiliate disclosure when affiliate links or recommendations may apply.",
+    "Do not claim hands-on testing, screenshots, prices, or product facts unless the provided outline or sources support them; phrase uncertain details as items to verify during editorial review.",
+  ].join(" ");
 }
 
 function shouldIncludeTemporalContext(promptKey: string) {

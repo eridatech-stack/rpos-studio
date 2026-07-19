@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { DeleteKeywordButton } from "@/components/DeleteKeywordButton";
 import { getKeywords } from "@/repositories/keywordRepository";
+import type { keywords_status } from "@prisma/client";
 import {
   Card,
   EmptyState,
@@ -14,12 +15,15 @@ export default async function KeywordsPage({
 }: {
   searchParams: Promise<{
     q?: string;
+    status?: string;
   }>;
 }) {
   const params = await searchParams;
   const query = params.q?.trim() || "";
+  const status = parseKeywordStatus(params.status);
   const keywords: any[] = await getKeywords({
     query,
+    status,
   });
 
   return (
@@ -57,6 +61,26 @@ export default async function KeywordsPage({
               />
             </label>
 
+            <label className="md:w-56">
+              <span className="text-sm font-semibold text-slate-500">
+                Status
+              </span>
+
+              <select
+                name="status"
+                defaultValue={status || ""}
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">All statuses</option>
+                <option value="new">New</option>
+                <option value="needs_review">Needs review</option>
+                <option value="approved">Approved</option>
+                <option value="planned">Planned</option>
+                <option value="used">Used</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </label>
+
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -65,7 +89,7 @@ export default async function KeywordsPage({
                 Search
               </button>
 
-              {query && (
+              {(query || status) && (
                 <Link
                   href="/keywords"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -76,13 +100,26 @@ export default async function KeywordsPage({
             </div>
           </form>
 
-          {query && (
+          {(query || status) && (
             <div className="mt-3 text-sm text-slate-500">
               Showing {keywords.length} result
-              {keywords.length === 1 ? "" : "s"} for{" "}
-              <span className="font-semibold text-slate-700">
-                {query}
-              </span>
+              {keywords.length === 1 ? "" : "s"}
+              {query && (
+                <>
+                  {" "}for{" "}
+                  <span className="font-semibold text-slate-700">
+                    {query}
+                  </span>
+                </>
+              )}
+              {status && (
+                <>
+                  {" "}with status{" "}
+                  <span className="font-semibold text-slate-700">
+                    {friendlyValue(status)}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </Card>
@@ -101,6 +138,7 @@ export default async function KeywordsPage({
                     <th className="p-4">Priority</th>
                     <th className="p-4">Score</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Articles</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -144,6 +182,10 @@ export default async function KeywordsPage({
                       </td>
 
                       <td className="p-4">
+                        {item._count?.articles ?? 0}
+                      </td>
+
+                      <td className="p-4">
                         <div className="flex items-center justify-end gap-2">
                           <Link
                             href={`/keywords/${item.id}/edit`}
@@ -169,9 +211,13 @@ export default async function KeywordsPage({
             <div className="p-6">
               <EmptyState
                 icon="🔑"
-                title={query ? "No matching keywords" : "No keywords yet"}
+                title={
+                  query || status
+                    ? "No matching keywords"
+                    : "No keywords yet"
+                }
                 description={
-                  query
+                  query || status
                     ? "Try a different keyword, category, cluster, status, or note search."
                     : "Import keywords or use Developer Tools to seed approved keyword opportunities."
                 }
@@ -212,4 +258,19 @@ function friendlyValue(
   value: string | null | undefined
 ) {
   return value ? value.replaceAll("_", " ") : "—";
+}
+
+function parseKeywordStatus(value: string | undefined) {
+  const statuses: keywords_status[] = [
+    "new",
+    "approved",
+    "planned",
+    "used",
+    "rejected",
+    "needs_review",
+  ];
+
+  return statuses.includes(value as keywords_status)
+    ? (value as keywords_status)
+    : undefined;
 }

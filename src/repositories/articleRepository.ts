@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { db } from "@/lib/db";
 
@@ -338,13 +340,44 @@ export async function getArticleById(articleId: string) {
     `,
     [articleId]
   );
+  const imagesWithFileSizes = await Promise.all(
+    images.map(async (image: any) => ({
+      ...image,
+      file_size_bytes: await getLocalGeneratedImageSize(
+        image.file_url
+      ),
+    }))
+  );
 
   return {
     ...article,
     article_sections: sections,
     article_faqs: faqs,
-    images,
+    images: imagesWithFileSizes,
   };
+}
+
+async function getLocalGeneratedImageSize(fileUrl: string | null) {
+  if (
+    !fileUrl ||
+    !fileUrl.startsWith("/generated-images/")
+  ) {
+    return null;
+  }
+
+  const filePath = path.join(
+    process.cwd(),
+    "public",
+    "generated-images",
+    path.basename(fileUrl)
+  );
+
+  try {
+    const file = await stat(filePath);
+    return file.size;
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteNonPublishedArticleAndRestoreKeyword(

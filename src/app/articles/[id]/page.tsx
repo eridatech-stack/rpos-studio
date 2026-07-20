@@ -439,6 +439,10 @@ function FeaturedImageCard({
               value={featuredImage.wordpress_media_id}
             />
             <Info
+              label="Generated Image Size"
+              value={formatFileSize(featuredImage.file_size_bytes)}
+            />
+            <Info
               label="Alt Text"
               value={featuredImage.alt_text}
             />
@@ -468,11 +472,16 @@ function FeaturedImageCard({
                       </div>
                     </div>
 
-                    {image.wordpress_media_id && (
-                      <div className="font-mono text-slate-500">
-                        WP {String(image.wordpress_media_id)}
+                    <div className="text-right font-mono text-slate-500">
+                      {image.wordpress_media_id && (
+                        <div>
+                          WP {String(image.wordpress_media_id)}
+                        </div>
+                      )}
+                      <div>
+                        {formatFileSize(image.file_size_bytes) || "—"}
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -586,4 +595,27 @@ function formatDate(value: unknown) {
   return Number.isNaN(date.getTime())
     ? String(value)
     : date.toLocaleDateString();
+}
+
+function formatFileSize(value: unknown) {
+  const bytes = Number(value);
+
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return null;
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  const units = ["KB", "MB", "GB"];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
 }

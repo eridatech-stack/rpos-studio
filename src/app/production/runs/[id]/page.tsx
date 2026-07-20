@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { RetryProductionRunButton } from "@/components/RetryProductionRunButton";
+import { StaleProductionRunActions } from "@/components/StaleProductionRunActions";
 import {
   Card,
   EmptyState,
@@ -66,6 +67,10 @@ export default async function ProductionRunDetailPage({
                 <RetryProductionRunButton productionRunId={run.id} />
               )}
 
+              {isStaleRun(run) && (
+                <StaleProductionRunActions productionRunId={run.id} />
+              )}
+
               <StatusChip status={run.status} />
             </div>
           }
@@ -105,6 +110,13 @@ export default async function ProductionRunDetailPage({
             {run.error_message && (
               <div className="mt-5 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
                 {run.error_message}
+              </div>
+            )}
+
+            {isStaleRun(run) && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                This run appears stale. The worker lock is older than 30
+                minutes, so you can restart unfinished steps or remove the run.
               </div>
             )}
           </Card>
@@ -334,6 +346,10 @@ function displayValue(value: unknown) {
   }
 
   return String(value);
+}
+
+function isStaleRun(run: ProductionRun) {
+  return Boolean(Number(run.is_stale));
 }
 
 function shortId(id: string) {

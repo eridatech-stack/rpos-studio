@@ -15,6 +15,7 @@ export interface ProductionRun {
   created_at: Date;
   duration_seconds?: number | null;
   last_activity_at?: Date | null;
+  is_stale?: number | boolean | null;
   article_title?: string | null;
   keyword?: string | null;
   site_name?: string | null;

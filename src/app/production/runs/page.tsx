@@ -18,6 +18,7 @@ export default async function ProductionRunsPage() {
   const runs = await getProductionRuns();
 
   const running = runs.filter((run) => run.status === "running").length;
+  const stale = runs.filter((run) => isStaleRun(run)).length;
   const completed = runs.filter((run) => run.status === "completed").length;
   const failed = runs.filter((run) => run.status === "failed").length;
   const queued = runs.filter((run) => run.status === "queued").length;
@@ -31,7 +32,7 @@ export default async function ProductionRunsPage() {
           actions={<AutoRefresh />}
         />
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <MetricCard
             title="Queued"
             value={queued}
@@ -45,6 +46,13 @@ export default async function ProductionRunsPage() {
             subtitle="Currently processing"
             icon="⚙️"
             color="blue"
+          />
+          <MetricCard
+            title="Stale"
+            value={stale}
+            subtitle="Needs action"
+            icon="🧯"
+            color="red"
           />
           <MetricCard
             title="Completed"
@@ -110,6 +118,12 @@ export default async function ProductionRunsPage() {
                   <StatusChip status={run.status} />
                 </div>
 
+                {isStaleRun(run) && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Stale worker lock. Open this run to restart or remove it.
+                  </div>
+                )}
+
                 {run.error_message && (
                   <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                     {run.error_message}
@@ -130,6 +144,10 @@ export default async function ProductionRunsPage() {
       </main>
     </AppShell>
   );
+}
+
+function isStaleRun(run: ProductionRun) {
+  return Boolean(Number(run.is_stale));
 }
 
 function friendlyStepName(run: ProductionRun) {

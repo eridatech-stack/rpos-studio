@@ -20,6 +20,11 @@ export async function getProductionRuns(): Promise<ProductionRun[]> {
         pr.finished_at,
         pr.created_at
       ) AS last_activity_at,
+      (
+        pr.status = 'running'
+        AND pr.locked_at IS NOT NULL
+        AND pr.locked_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+      ) AS is_stale,
       a.title AS article_title,
       k.keyword,
       s.site_name,
@@ -53,6 +58,11 @@ export async function getProductionRun(
         pr.finished_at,
         pr.created_at
       ) AS last_activity_at,
+      (
+        pr.status = 'running'
+        AND pr.locked_at IS NOT NULL
+        AND pr.locked_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+      ) AS is_stale,
       a.title AS article_title,
       k.keyword,
       s.site_name,

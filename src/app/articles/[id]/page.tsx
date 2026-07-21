@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { ArticleStatusEditor } from "@/components/ArticleStatusEditor";
 import { ApproveArticleButton } from "@/components/ApproveArticleButton";
 import { AutomatedReviewCard } from "@/components/AutomatedReviewCard";
 import { DraftEditor } from "@/components/DraftEditor";
@@ -206,6 +207,10 @@ export default async function ArticleDetailPage({
                 <Info
                   label="Cluster"
                   value={article.topic_clusters?.name}
+                />
+                <ArticleStatusEditor
+                  articleId={article.id}
+                  currentStatus={article.status}
                 />
               </div>
             </Card>

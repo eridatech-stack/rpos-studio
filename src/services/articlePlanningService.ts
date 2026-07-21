@@ -59,6 +59,7 @@ export async function generateArticlePlan(keywordId: string) {
     const normalizedPlan = normalizeArticlePlan({
       plan,
       keyword: keyword.keyword,
+      articleTypeFallback: keyword.article_type || "cluster",
     });
 
     const articleId = await createArticleFromPlan({
@@ -72,7 +73,7 @@ export async function generateArticlePlan(keywordId: string) {
         safeSlug(normalizedPlan.title || keyword.keyword),
       articleType:
         normalizedPlan.article_type || keyword.article_type || "cluster",
-      intent: keyword.intent || "informational",
+      intent: normalizedPlan.intent || keyword.intent || "informational",
       targetWordCount: Number(normalizedPlan.target_word_count || 1800),
       outline: normalizedPlan.outline || [],
       faqs: normalizedPlan.faq || [],
@@ -121,9 +122,11 @@ export async function generateArticlePlan(keywordId: string) {
 function normalizeArticlePlan({
   plan,
   keyword,
+  articleTypeFallback,
 }: {
   plan: any;
   keyword: string;
+  articleTypeFallback: string;
 }) {
   const currentYear = getCurrentContentYear();
   const title = containsExplicitYear(keyword)
@@ -158,6 +161,11 @@ function normalizeArticlePlan({
     slug: containsExplicitYear(keyword)
       ? plan.slug
       : replaceStaleYears(plan.slug || safeSlug(keywordAwareTitle), currentYear),
+    article_type: normalizeArticleType(
+      plan.article_type,
+      articleTypeFallback
+    ),
+    intent: normalizeArticleIntent(plan.intent),
     meta_title: normalizeMetaTitle(
       keywordAwareMetaTitle,
       keywordAwareTitle,
@@ -170,6 +178,57 @@ function normalizeArticlePlan({
     ),
     target_word_count: normalizeTargetWordCount(plan.target_word_count),
   };
+}
+
+function normalizeArticleType(value: unknown, fallback: string) {
+  const supported = [
+    "pillar",
+    "cluster",
+    "faq",
+    "review",
+    "comparison",
+    "news",
+    "how_to",
+  ];
+  const normalized = normalizeEnumText(value);
+  const normalizedFallback = normalizeEnumText(fallback);
+
+  if (supported.includes(normalized)) {
+    return normalized;
+  }
+
+  if (normalized === "howto" || normalized === "tutorial") {
+    return "how_to";
+  }
+
+  if (normalized === "guide" || normalized === "listicle") {
+    return "cluster";
+  }
+
+  return supported.includes(normalizedFallback)
+    ? normalizedFallback
+    : "cluster";
+}
+
+function normalizeArticleIntent(value: unknown) {
+  const supported = [
+    "informational",
+    "commercial",
+    "transactional",
+    "navigational",
+  ];
+  const normalized = normalizeEnumText(value);
+
+  return supported.includes(normalized)
+    ? normalized
+    : undefined;
+}
+
+function normalizeEnumText(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 }
 
 function ensureKeywordInText(

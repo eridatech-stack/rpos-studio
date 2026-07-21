@@ -212,11 +212,21 @@ export async function getKeywordPackById(keywordPackId: string) {
       COUNT(DISTINCT kpc.id) AS category_count,
       COUNT(DISTINCT kpcl.id) AS cluster_count,
       COUNT(DISTINCT kpi.id) AS item_count,
-      SUM(kpi.review_status = 'approved') AS approved_item_count,
-      SUM(kpi.review_status = 'imported') AS imported_item_count,
-      SUM(kpi.review_status = 'duplicate') AS duplicate_item_count,
-      SUM(kpi.review_status = 'rejected') AS rejected_item_count,
-      SUM(kpi.review_status = 'pending') AS pending_item_count
+      COUNT(DISTINCT CASE
+        WHEN kpi.review_status = 'approved' THEN kpi.id
+      END) AS approved_item_count,
+      COUNT(DISTINCT CASE
+        WHEN kpi.review_status = 'imported' THEN kpi.id
+      END) AS imported_item_count,
+      COUNT(DISTINCT CASE
+        WHEN kpi.review_status = 'duplicate' THEN kpi.id
+      END) AS duplicate_item_count,
+      COUNT(DISTINCT CASE
+        WHEN kpi.review_status = 'rejected' THEN kpi.id
+      END) AS rejected_item_count,
+      COUNT(DISTINCT CASE
+        WHEN kpi.review_status = 'pending' THEN kpi.id
+      END) AS pending_item_count
     FROM keyword_packs kp
     INNER JOIN sites s ON s.id = kp.site_id
     LEFT JOIN keyword_pack_categories kpc

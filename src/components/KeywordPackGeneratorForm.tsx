@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import { useToast } from "@/hooks/useToast";
@@ -11,6 +11,11 @@ type SiteOption = {
   domain: string;
 };
 
+type PresetSummary = {
+  id: string;
+  label: string;
+};
+
 export function KeywordPackGeneratorForm({
   sites,
 }: {
@@ -18,10 +23,16 @@ export function KeywordPackGeneratorForm({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [packSize, setPackSize] = useState("50");
+  const [generationMode, setGenerationMode] = useState("balanced");
   const [preview, setPreview] = useState(false);
   const [largePackConfirmed, setLargePackConfirmed] = useState(false);
+  const [presetLoading, setPresetLoading] = useState(false);
+  const [presetOptions, setPresetOptions] = useState<PresetSummary[]>(
+    fallbackPresetOptions
+  );
   const [fields, setFields] = useState({
     name: "Travel content opportunity map",
     niche: "Travel planning",
@@ -34,6 +45,94 @@ export function KeywordPackGeneratorForm({
     preferredCategories: "Destinations, Travel Planning, Budget Travel, Family Travel, Travel Gear, Travel Apps",
     brandNotes: "Friendly, practical, trustworthy, and easy to scan. Avoid hype and unsupported claims.",
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-5 lg:grid-cols-2">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-20 animate-pulse rounded-xl bg-slate-100"
+            />
+          ))}
+        </div>
+        <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
+      </div>
+    );
+  }
+
+  async function loadPresetOptions() {
+    try {
+      const response = await fetch("/api/keyword-packs/presets");
+      const result = await response.json();
+
+      if (response.ok && Array.isArray(result.presets)) {
+        setPresetOptions(result.presets);
+      }
+    } catch {
+      setPresetOptions(fallbackPresetOptions);
+    }
+  }
+
+  async function applyCategoryPreset(presetId: string) {
+    if (!presetId) {
+      return;
+    }
+
+    setPresetLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/keyword-packs/presets?id=${encodeURIComponent(presetId)}`
+      );
+      const result = await response.json();
+
+      if (!response.ok || !result.preset) {
+        toast.error(
+          "Preset not loaded",
+          result.error || "Unable to load this category preset."
+        );
+        return;
+      }
+
+      const preset = result.preset;
+
+      setFields({
+        name: preset.name,
+        niche: preset.niche,
+        targetLanguage: preset.targetLanguage,
+        targetCountries: preset.targetCountries,
+        audience: preset.audience,
+        businessGoal: preset.businessGoal,
+        monetizationModel: preset.monetizationModel,
+        excludedTopics: preset.excludedTopics,
+        preferredCategories: preset.preferredCategories,
+        brandNotes: preset.brandNotes,
+      });
+      setGenerationMode(
+        typeof preset.recommendedGenerationMode === "string"
+          ? preset.recommendedGenerationMode
+          : "balanced"
+      );
+
+      toast.success(
+        "Category preset applied",
+        "The keyword-pack fields were autofilled for this content category."
+      );
+    } catch (error) {
+      toast.error(
+        "Preset not loaded",
+        error instanceof Error ? error.message : "Unable to load preset."
+      );
+    } finally {
+      setPresetLoading(false);
+    }
+  }
 
   async function submit(formData: FormData, startAfterCreate: boolean) {
     const requestedKeywordCount = Number(
@@ -69,7 +168,7 @@ export function KeywordPackGeneratorForm({
           preferredCategories: fields.preferredCategories,
           brandNotes: fields.brandNotes,
           requestedKeywordCount,
-          generationMode: formData.get("generationMode"),
+          generationMode,
           createdBy: "manual",
         }),
       });
@@ -126,6 +225,27 @@ export function KeywordPackGeneratorForm({
       className="space-y-6"
     >
       <div className="grid gap-5 lg:grid-cols-2">
+        <Field label="Content category autofill">
+          <select
+            value=""
+            onFocus={loadPresetOptions}
+            onChange={(event) => applyCategoryPreset(event.target.value)}
+            className={inputClass}
+            disabled={presetLoading}
+          >
+            <option value="">
+              {presetLoading
+                ? "Loading preset..."
+                : "Choose a category to autofill fields..."}
+            </option>
+            {presetOptions.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
         <Field label="Site">
           <select name="siteId" className={inputClass} required>
             {sites.map((site) => (
@@ -190,7 +310,12 @@ export function KeywordPackGeneratorForm({
         </Field>
 
         <Field label="Generation mode">
-          <select name="generationMode" className={inputClass}>
+          <select
+            name="generationMode"
+            value={generationMode}
+            onChange={(event) => setGenerationMode(event.target.value)}
+            className={inputClass}
+          >
             <option value="balanced">Balanced</option>
             <option value="low_competition">Low competition</option>
             <option value="high_traffic">High traffic</option>
@@ -558,4 +683,15 @@ const categoryPackPresets = [
     value:
       "Best Software, Free Tools, Alternatives, Comparisons, Reviews, Integrations, Workflows, Buying Guides",
   },
+];
+
+const fallbackPresetOptions = [
+  { id: "travel", label: "Travel" },
+  { id: "ai-tools", label: "AI Tools" },
+  { id: "productivity", label: "Productivity" },
+  { id: "personal-finance", label: "Personal Finance" },
+  { id: "home-improvement", label: "Home Improvement" },
+  { id: "health-wellness", label: "Health & Wellness" },
+  { id: "food-cooking", label: "Food & Cooking" },
+  { id: "small-business", label: "Small Business" },
 ];

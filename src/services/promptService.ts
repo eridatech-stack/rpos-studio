@@ -55,6 +55,8 @@ function getPromptSpecificInstruction(promptKey: string) {
       "include the exact primary keyword '{{keyword}}' naturally in the article title, meta_title, and meta_description whenever possible;",
       "set target_word_count to about 1800 words;",
       "create an outline with one H1 article title and multiple H2 section headings;",
+      "for internal_link_suggestions, suggest target article titles or keywords only; do not invent URLs or slugs unless they are provided as existing internal articles;",
+      "treat internal links without existing URLs as future content opportunities, not live links;",
       "prefer clear, natural wording over stuffing keywords.",
       getReviewComparisonInstruction("plan"),
     ].join(" ");
@@ -70,6 +72,8 @@ function getPromptSpecificInstruction(promptKey: string) {
       "do not use repeated H1 headings after the opening title;",
       "use these resolved internal link suggestions as contextual Markdown links when relevant: {{internal_links}};",
       "include 2-5 internal links when they fit naturally, using the provided URLs exactly;",
+      "use these verified external source URLs when referencing outside sources, product pages, documentation, or official data: {{external_sources}};",
+      "when citing an external source, add a natural Markdown link using the provided URL exactly; do not invent external URLs;",
       "make the body comprehensive, practical, and naturally optimized for the primary keyword.",
       getReviewComparisonInstruction("draft"),
     ].join(" ");

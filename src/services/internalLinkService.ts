@@ -20,30 +20,47 @@ type InternalLinkSuggestion = {
   url: string;
 };
 
+export type UnresolvedInternalLinkSuggestion = {
+  anchorText: string;
+  targetTitle: string;
+  suggestedUrl: string;
+};
+
 type InternalLinkCandidate = {
   title: string;
   slug: string;
   url: string;
+  categoryId: string | null;
+  clusterId: string | null;
 };
 
 export async function getResolvedInternalLinkSuggestions(
   article: ArticleLike
 ) {
+  const audit = await getInternalLinkAudit(article);
+
+  return audit.resolved.length > 0
+    ? audit.resolved
+    : audit.fallback;
+}
+
+export async function getInternalLinkAudit(article: ArticleLike) {
   const candidates = await getInternalLinkCandidates(article);
   const planned = parseInternalLinkSuggestions(article.internal_links);
-  const resolved = resolvePlannedSuggestions({
+  const { resolved, unresolved } = resolvePlannedSuggestions({
     planned,
     candidates,
-    article,
   });
 
-  return resolved.length > 0
-    ? resolved
-    : candidates.slice(0, 3).map((candidate) => ({
-        anchorText: candidate.title,
-        targetTitle: candidate.title,
-        url: candidate.url,
-      }));
+  return {
+    resolved,
+    unresolved,
+    fallback: candidates.slice(0, 3).map((candidate) => ({
+      anchorText: candidate.title,
+      targetTitle: candidate.title,
+      url: candidate.url,
+    })),
+  };
 }
 
 export function buildInternalLinkPromptText(
@@ -94,24 +111,11 @@ export function applyInternalLinksToMarkdown(
 }
 
 async function getInternalLinkCandidates(article: ArticleLike) {
-  const relatedFilters: Prisma.articlesWhereInput[] = [];
-
-  if (article.cluster_id) {
-    relatedFilters.push({ cluster_id: article.cluster_id });
-  }
-
-  if (article.category_id) {
-    relatedFilters.push({ category_id: article.category_id });
-  }
   const linkableStatuses: articles_status[] = [
     "published",
-    "approved",
-    "wordpress_draft",
-    "human_review",
-    "draft_ready",
   ];
 
-  const where = {
+  const where: Prisma.articlesWhereInput = {
     site_id: article.site_id,
     id: {
       not: article.id,
@@ -119,11 +123,6 @@ async function getInternalLinkCandidates(article: ArticleLike) {
     status: {
       in: linkableStatuses,
     },
-    ...(relatedFilters.length > 0
-      ? {
-          OR: relatedFilters,
-        }
-      : {}),
   };
 
   const articles = await prisma.articles.findMany({
@@ -135,6 +134,8 @@ async function getInternalLinkCandidates(article: ArticleLike) {
     select: {
       title: true,
       slug: true,
+      category_id: true,
+      cluster_id: true,
       published_url: true,
       wordpress_draft_url: true,
     },
@@ -144,21 +145,27 @@ async function getInternalLinkCandidates(article: ArticleLike) {
     .map((candidate) => ({
       title: candidate.title,
       slug: candidate.slug,
+      categoryId: candidate.category_id,
+      clusterId: candidate.cluster_id,
       url:
         candidate.published_url ||
-        buildArticleUrl(article.sites?.domain, candidate.slug) ||
-        candidate.wordpress_draft_url ||
-        `/${candidate.slug}`,
+        buildArticleUrl(article.sites?.domain, candidate.slug),
     }))
-    .filter((candidate) => candidate.title && candidate.url);
+    .filter((candidate) => candidate.title && candidate.url)
+    .sort((left, right) => {
+      const leftScore = scoreCandidateRelevance(article, left);
+      const rightScore = scoreCandidateRelevance(article, right);
+
+      return rightScore - leftScore;
+    });
 }
 
 function resolvePlannedSuggestions(input: {
   planned: Array<Record<string, unknown>>;
   candidates: InternalLinkCandidate[];
-  article: ArticleLike;
 }) {
   const resolved: InternalLinkSuggestion[] = [];
+  const unresolved: UnresolvedInternalLinkSuggestion[] = [];
 
   for (const item of input.planned) {
     const anchorText = pickString(item, [
@@ -188,14 +195,20 @@ function resolvePlannedSuggestions(input: {
     const rawSlug = pickString(item, ["slug", "target_slug", "targetSlug"]);
     const matchedCandidate = findMatchingCandidate(
       input.candidates,
-      targetTitle || anchorText || rawSlug
+      targetTitle || anchorText || rawSlug || rawUrl
     );
-    const url =
-      normalizeUrl(rawUrl) ||
-      matchedCandidate?.url ||
-      buildArticleUrl(input.article.sites?.domain, rawSlug);
 
-    if (!url) {
+    if (!matchedCandidate) {
+      const label = anchorText || targetTitle || rawSlug || rawUrl;
+
+      if (label) {
+        unresolved.push({
+          anchorText: anchorText || label,
+          targetTitle: targetTitle || label,
+          suggestedUrl: rawUrl || rawSlug,
+        });
+      }
+
       continue;
     }
 
@@ -212,11 +225,14 @@ function resolvePlannedSuggestions(input: {
     resolved.push({
       anchorText: label,
       targetTitle: targetTitle || matchedCandidate?.title || label,
-      url,
+      url: matchedCandidate.url,
     });
   }
 
-  return uniqueByUrl(resolved);
+  return {
+    resolved: uniqueByUrl(resolved),
+    unresolved,
+  };
 }
 
 function parseInternalLinkSuggestions(value: string | null | undefined) {
@@ -353,15 +369,34 @@ function findMatchingCandidate(
     candidates.find(
       (candidate) =>
         normalizeForMatch(candidate.title) === normalized ||
-        normalizeForMatch(candidate.slug) === normalized
+        normalizeForMatch(candidate.slug) === normalized ||
+        normalizeForMatch(candidate.url) === normalized
     ) ||
     candidates.find(
       (candidate) =>
         normalizeForMatch(candidate.title).includes(normalized) ||
-        normalized.includes(normalizeForMatch(candidate.title))
+        normalized.includes(normalizeForMatch(candidate.title)) ||
+        normalizeForMatch(candidate.url).includes(normalized)
     ) ||
     null
   );
+}
+
+function scoreCandidateRelevance(
+  article: ArticleLike,
+  candidate: InternalLinkCandidate
+) {
+  let score = 0;
+
+  if (article.cluster_id && article.cluster_id === candidate.clusterId) {
+    score += 2;
+  }
+
+  if (article.category_id && article.category_id === candidate.categoryId) {
+    score += 1;
+  }
+
+  return score;
 }
 
 function uniqueByUrl(suggestions: InternalLinkSuggestion[]) {

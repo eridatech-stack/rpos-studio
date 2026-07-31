@@ -72,7 +72,8 @@ export function buildAutomatedReview(
     reviewReadability(averageWordsPerSentence),
     reviewInternalLinks(
       article.internal_links,
-      input.internalLinkCandidates || []
+      input.internalLinkCandidates || [],
+      markdown
     ),
     reviewExternalSources(article.external_sources),
     reviewFeaturedImage(article.images),
@@ -261,12 +262,31 @@ function reviewReadability(
 
 function reviewInternalLinks(
   value: string | null,
-  candidates: InternalLinkCandidate[]
+  candidates: InternalLinkCandidate[],
+  markdown: string
 ): AutomatedReviewFinding {
   const links = parseJsonArray(value);
+  const resolvedSuggestions = links.filter((link) =>
+    matchesPublishedCandidate(link, candidates)
+  );
+  const linkedInDraft = candidates.filter(
+    (candidate) =>
+      candidate.url &&
+      (markdown.includes(`](${candidate.url})`) ||
+        markdown.includes(`href="${candidate.url}"`))
+  );
 
-  if (links.length > 0) {
-    return pass("internalLinks", "Internal links", `${links.length} suggestions.`);
+  if (resolvedSuggestions.length > 0 || linkedInDraft.length > 0) {
+    const count = Math.max(
+      resolvedSuggestions.length,
+      linkedInDraft.length
+    );
+
+    return pass(
+      "internalLinks",
+      "Internal links",
+      `${count} published article link target${count === 1 ? "" : "s"} found.`
+    );
   }
 
   const suggestion =
@@ -280,6 +300,15 @@ function reviewInternalLinks(
           .join("; ")
       : "Add 2-3 links to related published articles once available.";
 
+  if (links.length > 0) {
+    return warning(
+      "internalLinks",
+      "Internal links",
+      `${links.length} planned suggestion${links.length === 1 ? "" : "s"} found, but none match published articles.`,
+      suggestion
+    );
+  }
+
   return warning(
     "internalLinks",
     "Internal links",
@@ -288,16 +317,96 @@ function reviewInternalLinks(
   );
 }
 
+function matchesPublishedCandidate(
+  link: Record<string, unknown>,
+  candidates: InternalLinkCandidate[]
+) {
+  const values = [
+    pickString(link, [
+      "target_article",
+      "targetArticle",
+      "target_title",
+      "targetTitle",
+      "title",
+      "article",
+    ]),
+    pickString(link, [
+      "anchor_text",
+      "anchorText",
+      "anchor",
+      "keyword",
+      "target_keyword",
+      "targetKeyword",
+      "text",
+    ]),
+    pickString(link, ["slug", "target_slug", "targetSlug"]),
+    pickString(link, ["url", "href", "link", "target_url", "targetUrl"]),
+  ]
+    .map(normalizeForMatch)
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    return false;
+  }
+
+  return candidates.some((candidate) => {
+    const candidateValues = [
+      candidate.title,
+      candidate.slug,
+      candidate.url || "",
+    ]
+      .map(normalizeForMatch)
+      .filter(Boolean);
+
+    return values.some((value) =>
+      candidateValues.some(
+        (candidateValue) =>
+          value === candidateValue ||
+          value.includes(candidateValue) ||
+          candidateValue.includes(value)
+      )
+    );
+  });
+}
+
 function reviewExternalSources(value: string | null): AutomatedReviewFinding {
   const sources = parseJsonArray(value);
+  const validSources = sources.filter(hasValidExternalUrl);
 
-  return sources.length > 0
-    ? pass("externalSources", "External sources", `${sources.length} suggestions.`)
+  return validSources.length > 0
+    ? pass(
+        "externalSources",
+        "External sources",
+        `${validSources.length} verified URL suggestion${validSources.length === 1 ? "" : "s"}.`
+      )
     : warning(
         "externalSources",
         "External sources",
-        "No external source suggestions found."
+        sources.length > 0
+          ? "External source suggestions found, but none include valid URLs."
+          : "No external source suggestions found."
       );
+}
+
+function hasValidExternalUrl(source: Record<string, unknown>) {
+  const value = pickString(source, [
+    "url",
+    "href",
+    "link",
+    "source_url",
+    "sourceUrl",
+  ]);
+
+  if (!/^https?:\/\//i.test(value)) {
+    return false;
+  }
+
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function reviewFeaturedImage(images: any[]): AutomatedReviewFinding {
@@ -435,4 +544,28 @@ function parseJsonArray(value: string | null) {
   } catch {
     return [];
   }
+}
+
+function pickString(
+  item: Record<string, unknown>,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = item[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function normalizeForMatch(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\//g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }

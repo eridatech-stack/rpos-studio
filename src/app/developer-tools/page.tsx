@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/AppShell";
+import { DatabaseBackupButton } from "@/components/DatabaseBackupButton";
 import { SeedFeaturedImagePromptButton } from "@/components/SeedFeaturedImagePromptButton";
 import { SeedKeywordPackPromptsButton } from "@/components/SeedKeywordPackPromptsButton";
 import { SeedKeywordsButton } from "@/components/SeedKeywordsButton";
@@ -59,6 +60,22 @@ export default function DeveloperToolsPage() {
 
             <div className="mt-5">
               <SeedKeywordPackPromptsButton />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="text-3xl">💾</div>
+            <h2 className="mt-4 text-xl font-bold">
+              Database Backup
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Creates a local SQL backup of the configured MySQL database
+              before migrations or risky development work.
+            </p>
+
+            <div className="mt-5">
+              <DatabaseBackupButton />
             </div>
           </Card>
 

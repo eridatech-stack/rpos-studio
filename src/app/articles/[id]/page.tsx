@@ -4,6 +4,7 @@ import { ArticleStatusEditor } from "@/components/ArticleStatusEditor";
 import { ApproveArticleButton } from "@/components/ApproveArticleButton";
 import { AutomatedReviewCard } from "@/components/AutomatedReviewCard";
 import { DraftEditor } from "@/components/DraftEditor";
+import { FacebookShareButton } from "@/components/FacebookShareButton";
 import { GenerateDraftButton } from "@/components/GenerateDraftButton";
 import { GenerateFeaturedImageButton } from "@/components/GenerateFeaturedImageButton";
 import { PublishApprovedArticleButton } from "@/components/PublishApprovedArticleButton";
@@ -16,6 +17,7 @@ import {
 } from "@/modules/editorial/qualityReview";
 import { parseAutomatedReview } from "@/modules/editorial/automatedReview";
 import { getArticleById } from "@/repositories/articleRepository";
+import { getInternalLinkAudit } from "@/services/internalLinkService";
 import {
   Card,
   EmptyState,
@@ -55,6 +57,7 @@ export default async function ArticleDetailPage({
   const qualityReview = parseQualityReview(article.editor_notes);
   const qualityReviewPassed = isQualityReviewPassed(qualityReview);
   const automatedReview = parseAutomatedReview(article.editor_notes);
+  const internalLinkAudit = await getInternalLinkAudit(article);
 
   return (
     <AppShell>
@@ -215,6 +218,8 @@ export default async function ArticleDetailPage({
               </div>
             </Card>
 
+            <InternalLinkOpportunitiesCard audit={internalLinkAudit} />
+
             <Card>
               <h2 className="text-xl font-bold">SEO</h2>
 
@@ -261,6 +266,8 @@ export default async function ArticleDetailPage({
               </div>
             </Card>
 
+            <SocialDistributionCard article={article} />
+
             {(article.status === "wordpress_draft" ||
               article.status === "human_review" ||
               article.status === "approved") && (
@@ -286,6 +293,179 @@ export default async function ArticleDetailPage({
         </div>
       </main>
     </AppShell>
+  );
+}
+
+function SocialDistributionCard({
+  article,
+}: {
+  article: any;
+}) {
+  const socialPosts = article.social_posts ?? [];
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Social Distribution</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Prepare Facebook sharing copy after publishing.
+          </p>
+        </div>
+
+        {article.status === "published" && article.published_url ? (
+          <FacebookShareButton articleId={article.id} />
+        ) : null}
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {socialPosts.length > 0 ? (
+          socialPosts.map((post: any) => (
+            <div
+              key={post.id}
+              className="rounded-xl border bg-slate-50 p-4 text-sm"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-slate-800">
+                    {friendlyValue(post.platform)}
+                  </div>
+                  <div className="mt-1 text-slate-500">
+                    Attempts: {post.attempt_count ?? 0}
+                  </div>
+                </div>
+
+                <StatusChip status={post.status} />
+              </div>
+
+              <div className="mt-3 whitespace-pre-wrap text-slate-600">
+                {post.message}
+              </div>
+
+              {post.link_url && (
+                <div className="mt-3">
+                  <div className="text-xs font-semibold uppercase text-slate-400">
+                    Shared link
+                  </div>
+                  <a
+                    href={post.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block break-all text-xs font-medium text-blue-700 hover:underline"
+                  >
+                    {post.link_url}
+                  </a>
+                </div>
+              )}
+
+              {post.provider_post_id && (
+                <div className="mt-3 space-y-2">
+                  <a
+                    href={buildFacebookPostUrl(post.provider_post_id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Open Facebook Post
+                  </a>
+
+                  <div className="break-all font-mono text-xs text-slate-400">
+                    Facebook post: {post.provider_post_id}
+                  </div>
+                </div>
+              )}
+
+              {post.error_message && (
+                <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+                  {post.error_message}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <EmptyState
+            icon="📣"
+            title="No social posts yet"
+            description="Publish the article, then prepare a Facebook post when you are ready to share."
+          />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function InternalLinkOpportunitiesCard({
+  audit,
+}: {
+  audit: Awaited<ReturnType<typeof getInternalLinkAudit>>;
+}) {
+  return (
+    <Card>
+      <h2 className="text-xl font-bold">Internal Link Opportunities</h2>
+
+      <div className="mt-5 space-y-5 text-sm">
+        <div>
+          <h3 className="font-semibold text-slate-700">
+            Existing article links
+          </h3>
+          <div className="mt-3 space-y-2">
+            {audit.resolved.length > 0 ? (
+              audit.resolved.map((item) => (
+                <div
+                  key={`${item.targetTitle}-${item.url}`}
+                  className="rounded-xl border bg-slate-50 p-3"
+                >
+                  <div className="font-semibold text-slate-800">
+                    {item.targetTitle}
+                  </div>
+                  <div className="mt-1 break-all font-mono text-xs text-slate-500">
+                    {item.url}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border bg-slate-50 p-3 text-slate-500">
+                No planned suggestions match existing articles yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {audit.unresolved.length > 0 && (
+          <div>
+            <h3 className="font-semibold text-slate-700">
+              Suggested future articles
+            </h3>
+            <p className="mt-1 text-slate-500">
+              These were suggested by planning, but no matching RPOS article
+              exists yet. Add the keywords/articles manually before linking.
+            </p>
+            <div className="mt-3 space-y-2">
+              {audit.unresolved.map((item) => (
+                <div
+                  key={`${item.targetTitle}-${item.suggestedUrl}`}
+                  className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-900"
+                >
+                  <div className="font-semibold">
+                    {item.targetTitle}
+                  </div>
+                  {item.anchorText && (
+                    <div className="mt-1 text-xs">
+                      Anchor idea: {item.anchorText}
+                    </div>
+                  )}
+                  {item.suggestedUrl && (
+                    <div className="mt-1 break-all font-mono text-xs">
+                      Suggested path: {item.suggestedUrl}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -623,4 +803,14 @@ function formatFileSize(value: unknown) {
   }
 
   return `${size.toFixed(size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+}
+
+function buildFacebookPostUrl(providerPostId: string) {
+  const [pageId, postId] = providerPostId.split("_");
+
+  if (pageId && postId) {
+    return `https://www.facebook.com/permalink.php?story_fbid=${encodeURIComponent(postId)}&id=${encodeURIComponent(pageId)}`;
+  }
+
+  return `https://www.facebook.com/${encodeURIComponent(providerPostId)}`;
 }

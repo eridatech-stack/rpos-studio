@@ -188,7 +188,7 @@ export async function getArticles(input: {
 } = {}) {
   const query = input.query?.trim();
 
-  return prisma.articles.findMany({
+  const articles = await prisma.articles.findMany({
     where: query
       ? {
           OR: [
@@ -249,6 +249,38 @@ export async function getArticles(input: {
       keywords: true,
     },
   });
+
+  const articleIds = articles.map((article) => article.id);
+
+  if (articleIds.length === 0) {
+    return articles;
+  }
+
+  const [socialRows]: any = await db.query(
+    `
+    SELECT
+      article_id,
+      platform,
+      status,
+      link_url,
+      provider_post_id,
+      error_message,
+      updated_at
+    FROM social_posts
+    WHERE platform = 'facebook'
+      AND article_id IN (?)
+    `,
+    [articleIds]
+  );
+  const facebookStatusByArticleId = new Map(
+    socialRows.map((row: any) => [row.article_id, row])
+  );
+
+  return articles.map((article) => ({
+    ...article,
+    facebook_social_post:
+      facebookStatusByArticleId.get(article.id) ?? null,
+  }));
 }
 
 function articleEnumSearchFilters(query: string) {
@@ -340,6 +372,15 @@ export async function getArticleById(articleId: string) {
     `,
     [articleId]
   );
+  const [socialPosts]: any = await db.query(
+    `
+    SELECT *
+    FROM social_posts
+    WHERE article_id = ?
+    ORDER BY created_at DESC
+    `,
+    [articleId]
+  );
   const imagesWithFileSizes = await Promise.all(
     images.map(async (image: any) => ({
       ...image,
@@ -354,6 +395,7 @@ export async function getArticleById(articleId: string) {
     article_sections: sections,
     article_faqs: faqs,
     images: imagesWithFileSizes,
+    social_posts: socialPosts,
   };
 }
 

@@ -4,6 +4,11 @@ import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { buildTextAiUsage } from "@/services/aiUsage";
 import {
+  applyExternalLinksToMarkdown,
+  buildExternalSourcePromptText,
+  getExternalSourceSuggestions,
+} from "@/services/externalLinkService";
+import {
   applyInternalLinksToMarkdown,
   buildInternalLinkPromptText,
   getResolvedInternalLinkSuggestions,
@@ -44,6 +49,8 @@ export async function generateArticleDraft(
       .join("\n\n");
     const internalLinkSuggestions =
       await getResolvedInternalLinkSuggestions(article);
+    const externalSourceSuggestions =
+      getExternalSourceSuggestions(article.external_sources);
 
     const prompt = await renderPrompt(article.site_id, "article_draft", {
       title: article.title,
@@ -54,6 +61,9 @@ export async function generateArticleDraft(
       meta_description: article.meta_description ?? "",
       internal_links: buildInternalLinkPromptText(
         internalLinkSuggestions
+      ),
+      external_sources: buildExternalSourcePromptText(
+        externalSourceSuggestions
       ),
       outline: outlineText,
     });
@@ -71,9 +81,12 @@ export async function generateArticleDraft(
       usage: response.usage,
     });
 
-    const markdown = applyInternalLinksToMarkdown(
-      response.choices[0]?.message?.content || "",
-      internalLinkSuggestions
+    const markdown = applyExternalLinksToMarkdown(
+      applyInternalLinksToMarkdown(
+        response.choices[0]?.message?.content || "",
+        internalLinkSuggestions
+      ),
+      externalSourceSuggestions
     );
     const nextStatus = getNextDraftStatus({
       currentStatus: article.status,
@@ -99,6 +112,7 @@ export async function generateArticleDraft(
       prompt: promptMetadata,
       aiUsage,
       internalLinksApplied: internalLinkSuggestions.length,
+      externalSourcesApplied: externalSourceSuggestions.length,
     });
 
     return article.id;

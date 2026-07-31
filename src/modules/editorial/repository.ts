@@ -157,7 +157,7 @@ export async function runAutomatedArticleReview(articleId: string) {
     FROM articles
     WHERE site_id = ?
       AND id <> ?
-      AND status IN ('published', 'approved', 'wordpress_draft', 'human_review')
+      AND status = 'published'
     ORDER BY
       CASE WHEN category_id = ? THEN 0 ELSE 1 END,
       updated_at DESC,
@@ -171,7 +171,7 @@ export async function runAutomatedArticleReview(articleId: string) {
     internalLinkCandidates: internalLinkCandidates.map((candidate: any) => ({
       title: candidate.title,
       slug: candidate.slug,
-      url: candidate.published_url || candidate.wordpress_draft_url || null,
+      url: candidate.published_url || null,
     })),
   });
   const editorNotes = mergeEditorNotes(article.editor_notes, {

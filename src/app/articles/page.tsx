@@ -82,7 +82,7 @@ export default async function ArticlesPage({
         <Card className="overflow-hidden p-0">
           {articles.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
+              <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="bg-slate-100 text-slate-600">
                   <tr>
                     <th className="p-4">Title</th>
@@ -91,6 +91,7 @@ export default async function ArticlesPage({
                     <th className="p-4">Cluster</th>
                     <th className="p-4">Type</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Facebook</th>
                     <th className="p-4">Words</th>
                     <th className="p-4">Action</th>
                   </tr>
@@ -129,6 +130,12 @@ export default async function ArticlesPage({
 
                       <td className="p-4">
                         <StatusChip status={article.status} />
+                      </td>
+
+                      <td className="p-4">
+                        <FacebookStatus
+                          post={article.facebook_social_post}
+                        />
                       </td>
 
                       <td className="p-4">
@@ -180,4 +187,67 @@ export default async function ArticlesPage({
 
 function friendlyValue(value: string | null | undefined) {
   return value ? value.replaceAll("_", " ") : "—";
+}
+
+function FacebookStatus({
+  post,
+}: {
+  post: any;
+}) {
+  if (!post) {
+    return (
+      <span className="text-sm text-slate-400">
+        Not prepared
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <StatusChip status={post.status} />
+
+      {post.provider_post_id && (
+        <a
+          href={buildFacebookPostUrl(post.provider_post_id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={post.provider_post_id}
+          className="inline-block max-w-[180px] truncate font-mono text-xs text-blue-700 hover:underline"
+        >
+          Open post
+        </a>
+      )}
+
+      {post.link_url && (
+        <a
+          href={post.link_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={post.link_url}
+          className="block max-w-[180px] truncate text-xs text-slate-500 hover:underline"
+        >
+          Shared link
+        </a>
+      )}
+
+      {post.error_message && (
+        <div
+          title={post.error_message}
+          className="max-w-[180px] truncate text-xs text-amber-700"
+        >
+          {post.error_message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildFacebookPostUrl(providerPostId: string) {
+  const [pageId, postId] = providerPostId.split("_");
+
+  if (pageId && postId) {
+    return `https://www.facebook.com/permalink.php?story_fbid=${encodeURIComponent(postId)}&id=${encodeURIComponent(pageId)}`;
+  }
+
+  return `https://www.facebook.com/${encodeURIComponent(providerPostId)}`;
 }

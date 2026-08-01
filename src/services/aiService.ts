@@ -1,8 +1,9 @@
-import { getOpenAIClient } from "@/lib/openai";
-import { buildTextAiUsage } from "@/services/aiUsage";
+import { type AiProvider } from "@/services/aiUsage";
+import { generateText } from "@/services/textGenerationService";
 
 export async function generateJsonWithAI(input: {
   prompt: string;
+  provider?: AiProvider;
   model: string;
   temperature: number;
 }) {
@@ -13,24 +14,18 @@ export async function generateJsonWithAI(input: {
 
 export async function generateJsonWithAIResult(input: {
   prompt: string;
+  provider?: AiProvider;
   model: string;
   temperature: number;
 }) {
-  const openai = getOpenAIClient();
-
-  const response = await openai.chat.completions.create({
+  const result = await generateText({
+    provider: input.provider,
     model: input.model,
-    messages: [
-      {
-        role: "user",
-        content: input.prompt,
-      },
-    ],
+    prompt: input.prompt,
     temperature: input.temperature,
   });
 
-  const content =
-    response.choices[0]?.message?.content?.trim() || "";
+  const content = result.content;
 
   const first = content.indexOf("{");
   const last = content.lastIndexOf("}");
@@ -41,15 +36,10 @@ export async function generateJsonWithAIResult(input: {
     );
   }
 
-  const aiUsage = buildTextAiUsage({
-    model: input.model,
-    usage: response.usage,
-  });
-
   try {
     return {
       data: JSON.parse(content.slice(first, last + 1)),
-      aiUsage,
+      aiUsage: result.aiUsage,
     };
   } catch {
     throw new Error(

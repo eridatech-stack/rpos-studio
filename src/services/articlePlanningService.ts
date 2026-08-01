@@ -3,6 +3,7 @@ import { createArticleFromPlan } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
 import { renderPrompt } from "@/services/promptService";
 import { generateJsonWithAIResult } from "@/services/aiService";
+import { type AiProvider } from "@/services/aiUsage";
 
 function safeSlug(value: string) {
   return value
@@ -13,7 +14,13 @@ function safeSlug(value: string) {
     .replace(/-+/g, "-");
 }
 
-export async function generateArticlePlan(keywordId: string) {
+export async function generateArticlePlan(
+  keywordId: string,
+  options: {
+    aiProvider?: AiProvider;
+    aiModel?: string;
+  } = {}
+) {
   const keyword = await getKeywordById(keywordId);
   let promptMetadata:
     | ReturnType<typeof buildPromptMetadata>
@@ -35,6 +42,8 @@ export async function generateArticlePlan(keywordId: string) {
       keyword: keyword.keyword,
       category: keyword.categories?.name ?? "",
       cluster: keyword.topic_clusters?.name ?? "",
+      aiProvider: options.aiProvider || null,
+      aiModel: options.aiModel || null,
     },
   });
 
@@ -53,7 +62,8 @@ export async function generateArticlePlan(keywordId: string) {
 
     const { data: plan, aiUsage } = await generateJsonWithAIResult({
       prompt: prompt.text,
-      model: prompt.model,
+      provider: options.aiProvider || prompt.provider,
+      model: options.aiModel || prompt.model,
       temperature: prompt.temperature,
     });
     const normalizedPlan = normalizeArticlePlan({
@@ -104,6 +114,8 @@ export async function generateArticlePlan(keywordId: string) {
       slug: normalizedPlan.slug,
       prompt: promptMetadata,
       aiUsage,
+      aiProviderOverride: options.aiProvider || null,
+      aiModelOverride: options.aiModel || null,
     });
 
     return articleId;
@@ -397,12 +409,14 @@ function buildPromptMetadata(prompt: {
   name: string;
   version: string | null;
   model: string;
+  provider: string;
 }) {
   return {
     id: prompt.id,
     key: prompt.promptKey,
     name: prompt.name,
     version: prompt.version,
+    provider: prompt.provider,
     model: prompt.model,
   };
 }

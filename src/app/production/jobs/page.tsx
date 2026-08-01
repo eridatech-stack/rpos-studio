@@ -56,7 +56,11 @@ function JobRow({ job }: { job: any }) {
       </div>
 
       {aiUsage && (
-        <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
+        <div className="mt-4 grid gap-3 text-sm md:grid-cols-5">
+          <UsageValue
+            label="API"
+            value={formatProvider(aiUsage.provider)}
+          />
           <UsageValue label="Model" value={aiUsage.model} />
           <UsageValue
             label="Input"
@@ -118,9 +122,7 @@ function parseAiUsage(outputData: unknown) {
 
   const aiUsage = (data as any).aiUsage;
 
-  return aiUsage &&
-    typeof aiUsage === "object" &&
-    aiUsage.provider === "openai"
+  return aiUsage && typeof aiUsage === "object"
     ? aiUsage
     : null;
 }
@@ -143,4 +145,8 @@ function formatCurrency(value: number | null | undefined) {
   return typeof value === "number"
     ? `$${value.toFixed(6)}`
     : "-";
+}
+
+function formatProvider(value: unknown) {
+  return value === "anthropic" ? "Claude" : "OpenAI";
 }

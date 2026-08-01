@@ -17,7 +17,11 @@ export async function POST(request: Request) {
     }
 
     const result = await retryFailedProductionRun(
-      body.productionRunId
+      body.productionRunId,
+      {
+        aiProvider: normalizeProvider(body.aiProvider),
+        aiModel: normalizeModel(body.aiModel),
+      }
     );
 
     return NextResponse.json(
@@ -44,4 +48,28 @@ export async function POST(request: Request) {
       }
     );
   }
+}
+
+function normalizeProvider(
+  value: unknown
+): "openai" | "anthropic" | undefined {
+  const provider = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (provider === "anthropic" || provider === "claude") {
+    return "anthropic";
+  }
+
+  if (provider === "openai") {
+    return "openai";
+  }
+
+  return undefined;
+}
+
+function normalizeModel(value: unknown) {
+  const model = String(value || "").trim();
+
+  return model || undefined;
 }

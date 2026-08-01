@@ -22,6 +22,7 @@ export function Button({
   return (
     <button
       {...props}
+      suppressHydrationWarning
       className={`inline-flex items-center justify-center rounded-xl px-5 py-2.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
     >
       {children}

@@ -146,6 +146,7 @@ export function QualityReviewChecklist({
               type="checkbox"
               checked={checks[item.key]}
               onChange={() => toggleCheck(item.key)}
+              suppressHydrationWarning
               className="h-4 w-4 rounded border-slate-300"
             />
 
@@ -163,6 +164,7 @@ export function QualityReviewChecklist({
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={4}
+          suppressHydrationWarning
           className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
         />
       </label>

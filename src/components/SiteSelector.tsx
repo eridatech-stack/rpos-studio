@@ -43,6 +43,7 @@ export function SiteSelector({
         onChange={(event) =>
           changeSite(event.target.value)
         }
+        suppressHydrationWarning
         className="mt-2 min-w-72 rounded-xl border border-slate-300 bg-white px-4 py-3 font-medium text-slate-800 shadow-sm"
       >
         {sites.map((site) => (

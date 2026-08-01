@@ -235,7 +235,7 @@ export default async function DashboardPage({
             <MetricCard
               title="This Month"
               value={formatCurrency(stats.aiCost.currentMonth)}
-              subtitle="Estimated OpenAI text generation cost"
+              subtitle="Estimated text generation cost"
               icon="💵"
               color="green"
             />
@@ -243,10 +243,51 @@ export default async function DashboardPage({
             <MetricCard
               title="Total Cost"
               value={formatCurrency(stats.aiCost.total)}
-              subtitle="Estimated lifetime text generation cost"
+              subtitle="Estimated lifetime text cost"
               icon="📊"
               color="purple"
             />
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {stats.aiCost.byProvider.map((provider: any) => (
+              <Card key={provider.provider}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold">
+                      {formatProvider(provider.provider)}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Text generation usage and estimated spend.
+                    </p>
+                  </div>
+
+                  <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    {formatProvider(provider.provider)}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <AiCostMetric
+                    label="This Month"
+                    value={formatCurrency(provider.currentMonth)}
+                  />
+                  <AiCostMetric
+                    label="Total"
+                    value={formatCurrency(provider.total)}
+                  />
+                  <AiCostMetric
+                    label="Input Tokens"
+                    value={formatNumber(provider.inputTokens)}
+                  />
+                  <AiCostMetric
+                    label="Output Tokens"
+                    value={formatNumber(provider.outputTokens)}
+                  />
+                </div>
+              </Card>
+            ))}
           </div>
         </section>
 
@@ -476,6 +517,26 @@ export default async function DashboardPage({
   );
 }
 
+function AiCostMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-slate-50 p-3">
+      <div className="text-xs font-semibold uppercase text-slate-400">
+        {label}
+      </div>
+
+      <div className="mt-1 truncate font-bold text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function ActionCard({
   href,
   icon,
@@ -590,4 +651,16 @@ function formatCurrency(value: number | string | null | undefined) {
   }
 
   return `$${amount.toFixed(6)}`;
+}
+
+function formatNumber(value: number | string | null | undefined) {
+  const number = Number(value ?? 0);
+
+  return Number.isFinite(number)
+    ? number.toLocaleString()
+    : "0";
+}
+
+function formatProvider(value: unknown) {
+  return value === "anthropic" ? "Claude" : "OpenAI";
 }

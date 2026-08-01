@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-function bumpVersion(version: string | null) {
-  const current = version || "1.0";
-  const parts = current.split(".");
-  const major = Number(parts[0] || 1);
-  const minor = Number(parts[1] || 0) + 1;
-
-  return `${major}.${minor}`;
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -34,11 +25,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Prompt not found." }, { status: 404 });
     }
 
+    const nextVersion = await getNextPromptVersion({
+      siteId: oldPrompt.site_id,
+      promptKey: oldPrompt.prompt_key,
+    });
+    const promptName = normalizePromptName(
+      body.name,
+      oldPrompt.name
+    );
+
     await db.query(
       `
       UPDATE prompt_versions
       SET active = FALSE
-      WHERE site_id = ?
+      WHERE site_id <=> ?
         AND prompt_key = ?
       `,
       [oldPrompt.site_id, oldPrompt.prompt_key]
@@ -51,23 +51,25 @@ export async function POST(request: Request) {
         prompt_key,
         name,
         prompt_text,
+        provider,
         model,
         temperature,
         output_format,
         version,
         active
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
       `,
       [
         oldPrompt.site_id,
         oldPrompt.prompt_key,
-        oldPrompt.name,
+        promptName,
         body.promptText,
+        normalizeProvider(body.provider),
         body.model,
         body.temperature,
         body.outputFormat,
-        bumpVersion(oldPrompt.version),
+        nextVersion,
       ]
     );
 
@@ -78,4 +80,61 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+async function getNextPromptVersion(input: {
+  siteId: string | null;
+  promptKey: string;
+}) {
+  const [rows]: any = await db.query(
+    `
+    SELECT version
+    FROM prompt_versions
+    WHERE site_id <=> ?
+      AND prompt_key = ?
+    `,
+    [input.siteId, input.promptKey]
+  );
+  const versions = rows
+    .map((row: any) => parseVersion(row.version))
+    .filter((version: any) => version !== null)
+    .sort((a: any, b: any) => {
+      if (a.major !== b.major) {
+        return b.major - a.major;
+      }
+
+      return b.minor - a.minor;
+    });
+  const latest = versions[0] || { major: 1, minor: 0 };
+
+  return `${latest.major}.${latest.minor + 1}`;
+}
+
+function parseVersion(version: unknown) {
+  const match = String(version || "").match(/^(\d+)\.(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+  };
+}
+
+function normalizeProvider(value: unknown) {
+  const provider = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  return provider === "anthropic" || provider === "claude"
+    ? "anthropic"
+    : "openai";
+}
+
+function normalizePromptName(value: unknown, fallback: string) {
+  const name = String(value || "").trim();
+
+  return name || fallback;
 }

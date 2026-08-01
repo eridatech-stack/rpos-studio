@@ -6,6 +6,7 @@ export async function getPromptVersions() {
       pv.id,
       pv.prompt_key,
       pv.name,
+      pv.provider,
       pv.model,
       pv.temperature,
       pv.output_format,
@@ -28,6 +29,7 @@ export async function getPromptPerformance() {
       JSON_UNQUOTE(JSON_EXTRACT(j.output_data, '$.prompt.key')) AS prompt_key,
       JSON_UNQUOTE(JSON_EXTRACT(j.output_data, '$.prompt.name')) AS prompt_name,
       JSON_UNQUOTE(JSON_EXTRACT(j.output_data, '$.prompt.version')) AS prompt_version,
+      JSON_UNQUOTE(JSON_EXTRACT(j.output_data, '$.prompt.provider')) AS provider,
       JSON_UNQUOTE(JSON_EXTRACT(j.output_data, '$.prompt.model')) AS model,
       COUNT(*) AS total_runs,
       SUM(j.status = 'completed') AS completed_runs,
@@ -68,6 +70,7 @@ export async function getPromptPerformance() {
       prompt_key,
       prompt_name,
       prompt_version,
+      provider,
       model
     ORDER BY total_runs DESC, estimated_cost DESC
   `);
@@ -77,6 +80,7 @@ export async function getPromptPerformance() {
     promptKey: row.prompt_key,
     promptName: row.prompt_name,
     promptVersion: row.prompt_version,
+    provider: row.provider || inferProviderFromModel(row.model),
     model: row.model,
     totalRuns: Number(row.total_runs ?? 0),
     completedRuns: Number(row.completed_runs ?? 0),
@@ -91,6 +95,15 @@ export async function getPromptPerformance() {
   }));
 }
 
+function inferProviderFromModel(model: unknown) {
+  return String(model || "")
+    .trim()
+    .toLowerCase()
+    .startsWith("claude-")
+    ? "anthropic"
+    : "openai";
+}
+
 export async function getPromptVersionById(id: string) {
   const [rows]: any = await db.query(
     `
@@ -99,6 +112,7 @@ export async function getPromptVersionById(id: string) {
       pv.prompt_key,
       pv.name,
       pv.prompt_text,
+      pv.provider,
       pv.model,
       pv.temperature,
       pv.output_format,

@@ -4,13 +4,15 @@ type TokenUsage = {
   total_tokens?: number | null;
 };
 
+export type AiProvider = "openai" | "anthropic";
+
 type TextModelRate = {
   inputPerMillion: number;
   outputPerMillion: number;
 };
 
 type AiUsageMetadata = {
-  provider: "openai";
+  provider: AiProvider;
   kind: "text" | "image";
   model: string;
   promptTokens: number | null;
@@ -24,9 +26,18 @@ const defaultTextModelRates: Record<string, TextModelRate> = {
     inputPerMillion: 0.4,
     outputPerMillion: 1.6,
   },
+  "claude-haiku-4-5-20251001": {
+    inputPerMillion: 1,
+    outputPerMillion: 5,
+  },
+  "claude-sonnet-4-5": {
+    inputPerMillion: 3,
+    outputPerMillion: 15,
+  },
 };
 
 export function buildTextAiUsage(input: {
+  provider?: AiProvider;
   model: string;
   usage?: TokenUsage | null;
 }): AiUsageMetadata {
@@ -41,7 +52,7 @@ export function buildTextAiUsage(input: {
   );
 
   return {
-    provider: "openai",
+    provider: input.provider || "openai",
     kind: "text",
     model: input.model,
     promptTokens,

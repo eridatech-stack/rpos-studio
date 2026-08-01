@@ -220,6 +220,8 @@ export default async function ArticleDetailPage({
 
             <InternalLinkOpportunitiesCard audit={internalLinkAudit} />
 
+            <AiGenerationCard jobs={article.ai_generation_jobs ?? []} />
+
             <Card>
               <h2 className="text-xl font-bold">SEO</h2>
 
@@ -293,6 +295,77 @@ export default async function ArticleDetailPage({
         </div>
       </main>
     </AppShell>
+  );
+}
+
+function AiGenerationCard({ jobs }: { jobs: any[] }) {
+  return (
+    <Card>
+      <h2 className="text-xl font-bold">AI Generation</h2>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Text-generation API and model used for this article.
+      </p>
+
+      <div className="mt-5 space-y-3">
+        {jobs.length > 0 ? (
+          jobs.map((job) => (
+            <div
+              key={job.id}
+              className="rounded-xl border bg-slate-50 p-4 text-sm"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-slate-800">
+                    {friendlyJobType(job.job_type)}
+                  </div>
+
+                  <div className="mt-1 text-slate-500">
+                    {formatProvider(job.provider)} ·{" "}
+                    {job.model || "Model unknown"}
+                  </div>
+                </div>
+
+                <StatusChip status={job.status} />
+              </div>
+
+              <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                <div>
+                  Prompt: {job.prompt_name || "—"}
+                  {job.prompt_version
+                    ? ` v${job.prompt_version}`
+                    : ""}
+                </div>
+                <div>
+                  Cost: {formatCurrency(job.estimated_cost_usd)}
+                </div>
+                <div>
+                  Input: {formatTokenCount(job.prompt_tokens)}
+                </div>
+                <div>
+                  Output: {formatTokenCount(job.completion_tokens)}
+                </div>
+                <div className="sm:col-span-2">
+                  Finished: {formatDate(job.finished_at)}
+                </div>
+              </div>
+
+              {job.error_message && (
+                <div className="mt-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">
+                  {job.error_message}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <EmptyState
+            icon="🤖"
+            title="No AI usage recorded"
+            description="Outline and draft generation jobs will appear here after this article is generated."
+          />
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -770,6 +843,19 @@ function friendlyValue(
     : "—";
 }
 
+function friendlyJobType(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    generate_outline: "Article Plan",
+    generate_draft: "Article Draft",
+  };
+
+  return value ? labels[value] || friendlyValue(value) : "—";
+}
+
+function formatProvider(value: unknown) {
+  return value === "anthropic" ? "Claude" : "OpenAI";
+}
+
 function formatDate(value: unknown) {
   if (!value) {
     return "—";
@@ -803,6 +889,24 @@ function formatFileSize(value: unknown) {
   }
 
   return `${size.toFixed(size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+}
+
+function formatCurrency(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+
+  if (!Number.isFinite(amount)) {
+    return "$0.000000";
+  }
+
+  return `$${amount.toFixed(6)}`;
+}
+
+function formatTokenCount(value: unknown) {
+  const count = Number(value);
+
+  return Number.isFinite(count)
+    ? count.toLocaleString()
+    : "—";
 }
 
 function buildFacebookPostUrl(providerPostId: string) {

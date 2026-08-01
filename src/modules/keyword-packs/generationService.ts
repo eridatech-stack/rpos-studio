@@ -393,6 +393,7 @@ async function runPromptStage(
   const result = await withRetries(() =>
     generateJsonWithAIResult({
       prompt: prompt.text,
+      provider: prompt.provider,
       model: prompt.model || "gpt-4.1-mini",
       temperature: Number(prompt.temperature ?? 0.35),
     })
@@ -557,6 +558,7 @@ function promptDetails(prompt: Awaited<ReturnType<typeof renderPrompt>>) {
     key: prompt.promptKey,
     name: prompt.name,
     version: prompt.version,
+    provider: prompt.provider,
     model: prompt.model,
   };
 }

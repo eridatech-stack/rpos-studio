@@ -121,6 +121,60 @@ export async function getDashboardStats(siteId: string) {
     `,
     [siteId]
   );
+  const [aiCostByProvider]: any = await db.query(
+    `
+    SELECT
+      COALESCE(
+        NULLIF(
+          JSON_UNQUOTE(
+            JSON_EXTRACT(output_data, '$.aiUsage.provider')
+          ),
+          ''
+        ),
+        'openai'
+      ) AS provider,
+      SUM(
+        CASE
+          WHEN finished_at >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+          THEN CAST(
+            JSON_UNQUOTE(
+              JSON_EXTRACT(output_data, '$.aiUsage.estimatedCostUsd')
+            ) AS DECIMAL(12, 6)
+          )
+          ELSE 0
+        END
+      ) AS current_month_cost,
+      SUM(
+        CAST(
+          JSON_UNQUOTE(
+            JSON_EXTRACT(output_data, '$.aiUsage.estimatedCostUsd')
+          ) AS DECIMAL(12, 6)
+        )
+      ) AS total_cost,
+      SUM(
+        CAST(
+          JSON_UNQUOTE(
+            JSON_EXTRACT(output_data, '$.aiUsage.promptTokens')
+          ) AS UNSIGNED
+        )
+      ) AS input_tokens,
+      SUM(
+        CAST(
+          JSON_UNQUOTE(
+            JSON_EXTRACT(output_data, '$.aiUsage.completionTokens')
+          ) AS UNSIGNED
+        )
+      ) AS output_tokens
+    FROM jobs
+    WHERE site_id = ?
+      AND status = 'completed'
+      AND output_data IS NOT NULL
+      AND JSON_EXTRACT(output_data, '$.aiUsage.estimatedCostUsd') IS NOT NULL
+    GROUP BY provider
+    ORDER BY total_cost DESC
+    `,
+    [siteId]
+  );
 
   const [recentWorkers]: any = await db.query(
     `
@@ -239,9 +293,46 @@ export async function getDashboardStats(siteId: string) {
     aiCost: {
       currentMonth: Number(aiCost?.current_month_cost ?? 0),
       total: Number(aiCost?.total_cost ?? 0),
+      byProvider: normalizeAiCostByProvider(aiCostByProvider),
     },
 
     recentRuns,
     recentPublished,
   };
+}
+
+function normalizeAiCostByProvider(rows: any[]) {
+  const byProvider = new Map(
+    rows.map((row) => [
+      normalizeProvider(row.provider),
+      {
+        provider: normalizeProvider(row.provider),
+        currentMonth: Number(row.current_month_cost ?? 0),
+        total: Number(row.total_cost ?? 0),
+        inputTokens: Number(row.input_tokens ?? 0),
+        outputTokens: Number(row.output_tokens ?? 0),
+      },
+    ])
+  );
+
+  return ["openai", "anthropic"].map(
+    (provider) =>
+      byProvider.get(provider) || {
+        provider,
+        currentMonth: 0,
+        total: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+      }
+  );
+}
+
+function normalizeProvider(value: unknown) {
+  const provider = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  return provider === "anthropic" || provider === "claude"
+    ? "anthropic"
+    : "openai";
 }

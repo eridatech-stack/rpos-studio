@@ -40,10 +40,37 @@ export async function renderPrompt(
     promptKey: prompt.prompt_key,
     name: prompt.name,
     version: prompt.version,
+    provider: normalizeAiProvider(prompt.provider, prompt.model),
     model: prompt.model,
     temperature: Number(prompt.temperature),
     outputFormat: prompt.output_format,
   };
+}
+
+function normalizeAiProvider(
+  provider: unknown,
+  model: unknown
+): "openai" | "anthropic" {
+  const normalizedProvider = String(provider || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedProvider === "anthropic" ||
+    normalizedProvider === "claude"
+  ) {
+    return "anthropic";
+  }
+
+  const normalizedModel = String(model || "")
+    .trim()
+    .toLowerCase();
+
+  if (normalizedModel.startsWith("claude-")) {
+    return "anthropic";
+  }
+
+  return "openai";
 }
 
 function getPromptSpecificInstruction(promptKey: string) {

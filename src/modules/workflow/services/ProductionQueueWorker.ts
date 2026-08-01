@@ -10,6 +10,7 @@ import {
 } from "@/services/featuredImageService";
 import { publishArticleToWordPressDraft } from "@/services/wordpressService";
 import { addProductionEvent } from "@/modules/production/eventRepository";
+import { type AiProvider } from "@/services/aiUsage";
 
 type ClaimedRun = {
   id: string;
@@ -32,6 +33,11 @@ type ProductionStepStatus =
 type ProductionStepSnapshot = {
   step_code: string;
   status: ProductionStepStatus;
+};
+
+type ProductionRunAiOptions = {
+  aiProvider?: AiProvider;
+  aiModel?: string;
 };
 
 const workerId = `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
@@ -238,6 +244,70 @@ async function getRunStepStatusesWithBackfill(
   return getRunStepStatuses(runId);
 }
 
+async function getLatestRetryAiOptions(
+  runId: string
+): Promise<ProductionRunAiOptions> {
+  const [rows]: any = await db.query(
+    `
+    SELECT details_json
+    FROM production_run_events
+    WHERE production_run_id = ?
+      AND event_type = 'run_retried'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+    `,
+    [runId]
+  );
+  const details = parseDetails(rows[0]?.details_json);
+  const aiProvider = normalizeAiProvider(details?.aiProvider);
+  const aiModel = normalizeAiModel(details?.aiModel);
+
+  return {
+    aiProvider,
+    aiModel,
+  };
+}
+
+function parseDetails(value: unknown): Record<string, any> | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value as Record<string, any>;
+  }
+
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAiProvider(
+  value: unknown
+): AiProvider | undefined {
+  const provider = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (provider === "anthropic" || provider === "claude") {
+    return "anthropic";
+  }
+
+  if (provider === "openai") {
+    return "openai";
+  }
+
+  return undefined;
+}
+
+function normalizeAiModel(value: unknown) {
+  const model = String(value || "").trim();
+
+  return model || undefined;
+}
+
 async function failRunningStep(
   runId: string,
   message: string
@@ -266,6 +336,8 @@ async function processRun(run: ClaimedRun) {
   try {
     const stepStatuses =
       await getRunStepStatusesWithBackfill(run.id);
+    const retryAiOptions =
+      await getLatestRetryAiOptions(run.id);
     const hasStep = (stepCode: string) =>
       stepStatuses.has(stepCode);
     const isStepCompleted = (stepCode: string) =>
@@ -297,12 +369,15 @@ async function processRun(run: ClaimedRun) {
         message: "Outline generation started.",
         details: {
           keywordId: run.keyword_id,
+          aiProvider: retryAiOptions.aiProvider || null,
+          aiModel: retryAiOptions.aiModel || null,
         },
       });
 
       articleId =
         await generateArticlePlan(
-          run.keyword_id
+          run.keyword_id,
+          retryAiOptions
         );
 
       await updateStep(
@@ -321,6 +396,8 @@ async function processRun(run: ClaimedRun) {
         details: {
           keywordId: run.keyword_id,
           articleId,
+          aiProvider: retryAiOptions.aiProvider || null,
+          aiModel: retryAiOptions.aiModel || null,
         },
       });
     } else if (!articleId) {
@@ -360,10 +437,12 @@ async function processRun(run: ClaimedRun) {
           "Article draft generation started.",
         details: {
           articleId,
+          aiProvider: retryAiOptions.aiProvider || null,
+          aiModel: retryAiOptions.aiModel || null,
         },
       });
 
-      await generateArticleDraft(articleId);
+      await generateArticleDraft(articleId, retryAiOptions);
 
       await updateStep(
         run.id,
@@ -380,6 +459,8 @@ async function processRun(run: ClaimedRun) {
           "Article draft generated successfully.",
         details: {
           articleId,
+          aiProvider: retryAiOptions.aiProvider || null,
+          aiModel: retryAiOptions.aiModel || null,
         },
       });
     }

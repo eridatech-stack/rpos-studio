@@ -35,9 +35,15 @@ export default async function PromptStudioPage() {
           </div>
 
           <div className="mt-5 space-y-3">
-            {performance.map((prompt: any) => (
+            {performance.map((prompt: any, index: number) => (
               <div
-                key={`${prompt.promptId}-${prompt.promptVersion}`}
+                key={[
+                  prompt.promptId,
+                  prompt.promptVersion,
+                  prompt.provider,
+                  prompt.model,
+                  index,
+                ].join("-")}
                 className="rounded-xl border bg-slate-50 p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -49,6 +55,7 @@ export default async function PromptStudioPage() {
                     <div className="mt-1 text-sm text-slate-500">
                       {prompt.promptKey} · Version{" "}
                       {prompt.promptVersion || "-"} ·{" "}
+                      {formatProvider(prompt.provider)} ·{" "}
                       {prompt.model || "-"}
                     </div>
                   </div>
@@ -119,8 +126,9 @@ export default async function PromptStudioPage() {
                     </div>
 
                     <div className="mt-1 text-sm text-slate-500">
-                      Key: {prompt.prompt_key} · Model: {prompt.model} · Temp:{" "}
-                      {prompt.temperature}
+                      Key: {prompt.prompt_key} · API:{" "}
+                      {formatProvider(prompt.provider)} · Model:{" "}
+                      {prompt.model} · Temp: {prompt.temperature}
                     </div>
 
                     <div className="mt-1 text-xs text-slate-400">
@@ -211,4 +219,10 @@ function formatCurrency(value: number | null | undefined) {
   return typeof value === "number"
     ? `$${value.toFixed(6)}`
     : "-";
+}
+
+function formatProvider(value: unknown) {
+  const provider = String(value || "openai");
+
+  return provider === "anthropic" ? "Claude" : "OpenAI";
 }

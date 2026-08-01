@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { addProductionEvent } from "@/modules/production/eventRepository";
+import { type AiProvider } from "@/services/aiUsage";
 
 type RetryProductionRunResult = {
   productionRunId: string;
@@ -12,7 +13,11 @@ type ProductionRunStepRow = {
 };
 
 export async function retryFailedProductionRun(
-  productionRunId: string
+  productionRunId: string,
+  options: {
+    aiProvider?: AiProvider;
+    aiModel?: string;
+  } = {}
 ): Promise<RetryProductionRunResult> {
   const connection = await db.getConnection();
 
@@ -101,6 +106,8 @@ export async function retryFailedProductionRun(
       details: {
         keywordId: run.keyword_id,
         completedSteps: Array.from(completedSteps),
+        aiProvider: options.aiProvider || null,
+        aiModel: options.aiModel || null,
       },
     });
 

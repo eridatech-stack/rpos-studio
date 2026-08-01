@@ -50,6 +50,7 @@ export function DraftEditor({
         <div className="flex gap-2">
           <button
             onClick={() => setMode("preview")}
+            suppressHydrationWarning
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "preview"
                 ? "bg-slate-900 text-white"
@@ -61,6 +62,7 @@ export function DraftEditor({
 
           <button
             onClick={() => setMode("edit")}
+            suppressHydrationWarning
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "edit"
                 ? "bg-slate-900 text-white"
@@ -73,6 +75,7 @@ export function DraftEditor({
           <button
             onClick={saveDraft}
             disabled={saving}
+            suppressHydrationWarning
             className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
           >
             {saving ? "Saving..." : "Save"}
@@ -90,6 +93,7 @@ export function DraftEditor({
         <textarea
           value={markdown}
           onChange={(event) => setMarkdown(event.target.value)}
+          suppressHydrationWarning
           className="mt-4 h-[700px] w-full rounded-lg border p-4 font-mono text-sm"
         />
       ) : (

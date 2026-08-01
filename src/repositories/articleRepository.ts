@@ -381,6 +381,33 @@ export async function getArticleById(articleId: string) {
     `,
     [articleId]
   );
+  const [aiGenerationJobs]: any = await db.query(
+    `
+    SELECT
+      id,
+      job_type,
+      status,
+      output_data,
+      error_message,
+      started_at,
+      finished_at,
+      created_at
+    FROM jobs
+    WHERE job_type IN ('generate_outline', 'generate_draft')
+      AND (
+        related_article_id = ?
+        OR (
+          related_keyword_id = ?
+          AND JSON_UNQUOTE(
+            JSON_EXTRACT(output_data, '$.articleId')
+          ) = ?
+        )
+      )
+    ORDER BY created_at DESC
+    LIMIT 6
+    `,
+    [articleId, article.primary_keyword_id, articleId]
+  );
   const imagesWithFileSizes = await Promise.all(
     images.map(async (image: any) => ({
       ...image,
@@ -396,7 +423,84 @@ export async function getArticleById(articleId: string) {
     article_faqs: faqs,
     images: imagesWithFileSizes,
     social_posts: socialPosts,
+    ai_generation_jobs: aiGenerationJobs.map(
+      normalizeAiGenerationJob
+    ),
   };
+}
+
+function normalizeAiGenerationJob(job: any) {
+  const outputData = parseJsonValue(job.output_data);
+  const aiUsage = outputData?.aiUsage || null;
+  const prompt = outputData?.prompt || null;
+
+  return {
+    id: job.id,
+    job_type: job.job_type,
+    status: job.status,
+    error_message: job.error_message,
+    started_at: job.started_at,
+    finished_at: job.finished_at,
+    created_at: job.created_at,
+    provider: normalizeAiProvider(
+      aiUsage?.provider || prompt?.provider,
+      aiUsage?.model || prompt?.model
+    ),
+    model: aiUsage?.model || prompt?.model || null,
+    prompt_name: prompt?.name || null,
+    prompt_version: prompt?.version || null,
+    estimated_cost_usd:
+      typeof aiUsage?.estimatedCostUsd === "number"
+        ? aiUsage.estimatedCostUsd
+        : null,
+    prompt_tokens:
+      typeof aiUsage?.promptTokens === "number"
+        ? aiUsage.promptTokens
+        : null,
+    completion_tokens:
+      typeof aiUsage?.completionTokens === "number"
+        ? aiUsage.completionTokens
+        : null,
+  };
+}
+
+function parseJsonValue(value: unknown) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value as any;
+  }
+
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAiProvider(
+  provider: unknown,
+  model: unknown
+) {
+  const normalizedProvider = String(provider || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedProvider === "anthropic" ||
+    normalizedProvider === "claude"
+  ) {
+    return "anthropic";
+  }
+
+  return String(model || "")
+    .trim()
+    .toLowerCase()
+    .startsWith("claude-")
+    ? "anthropic"
+    : "openai";
 }
 
 async function getLocalGeneratedImageSize(fileUrl: string | null) {

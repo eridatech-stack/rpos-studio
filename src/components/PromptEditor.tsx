@@ -1,19 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
+import { useToast } from "@/hooks/useToast";
+
+const defaultModelsByProvider: Record<string, string> = {
+  openai: "gpt-4.1-mini",
+  anthropic: "claude-haiku-4-5-20251001",
+};
 
 export function PromptEditor({ prompt }: { prompt: any }) {
+  const router = useRouter();
+  const toast = useToast();
+  const [name, setName] = useState(prompt.name || "");
   const [promptText, setPromptText] = useState(prompt.prompt_text);
+  const [provider, setProvider] = useState(prompt.provider || "openai");
   const [model, setModel] = useState(prompt.model || "gpt-4.1-mini");
   const [temperature, setTemperature] = useState(String(prompt.temperature ?? "0.40"));
   const [outputFormat, setOutputFormat] = useState(prompt.output_format || "json");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  function changeProvider(nextProvider: string) {
+    setProvider(nextProvider);
+
+    if (!model || model === defaultModelsByProvider[provider]) {
+      setModel(defaultModelsByProvider[nextProvider]);
+    }
+  }
 
   async function savePrompt() {
     setSaving(true);
-    setSaved(false);
 
     const response = await fetch("/api/prompts/update", {
       method: "POST",
@@ -22,7 +39,9 @@ export function PromptEditor({ prompt }: { prompt: any }) {
       },
       body: JSON.stringify({
         id: prompt.id,
+        name,
         promptText,
+        provider,
         model,
         temperature,
         outputFormat,
@@ -33,29 +52,61 @@ export function PromptEditor({ prompt }: { prompt: any }) {
     setSaving(false);
 
     if (!response.ok) {
-      alert(result.error || "Failed to save prompt.");
+      toast.error(
+        "Prompt save failed",
+        result.error || "Failed to save prompt.",
+        15000
+      );
       return;
     }
 
-    window.location.href = "/ai/prompts";
+    toast.success("Prompt saved", "The new prompt version is active.");
+    router.push("/ai/prompts");
+    router.refresh();
   }
 
   return (
     <div className="space-y-5">
-      {saved && (
-        <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-          Prompt saved successfully.
-        </div>
-      )}
+      <div>
+        <label className="text-sm font-semibold text-slate-500">
+          Generator Name
+        </label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="mt-1 w-full rounded-lg border p-3"
+        />
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <div>
+          <label className="text-sm font-semibold text-slate-500">
+            API Provider
+          </label>
+          <select
+            value={provider}
+            onChange={(e) => changeProvider(e.target.value)}
+            className="mt-1 w-full rounded-lg border p-3"
+          >
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Claude</option>
+          </select>
+        </div>
+
         <div>
           <label className="text-sm font-semibold text-slate-500">Model</label>
           <input
             value={model}
             onChange={(e) => setModel(e.target.value)}
+            list="prompt-model-options"
             className="mt-1 w-full rounded-lg border p-3"
           />
+          <datalist id="prompt-model-options">
+            <option value="gpt-4.1-mini" />
+            <option value="gpt-4.1" />
+            <option value="claude-haiku-4-5-20251001" />
+            <option value="claude-sonnet-4-5" />
+          </datalist>
         </div>
 
         <div>

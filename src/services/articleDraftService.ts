@@ -1,8 +1,6 @@
 import { db } from "@/lib/db";
-import { getOpenAIClient } from "@/lib/openai";
 import { getArticleById } from "@/repositories/articleRepository";
 import { createJob, completeJob, failJob } from "@/repositories/jobRepository";
-import { buildTextAiUsage } from "@/services/aiUsage";
 import {
   applyExternalLinksToMarkdown,
   buildExternalSourcePromptText,
@@ -14,11 +12,15 @@ import {
   getResolvedInternalLinkSuggestions,
 } from "@/services/internalLinkService";
 import { renderPrompt } from "@/services/promptService";
+import { generateText } from "@/services/textGenerationService";
+import { type AiProvider } from "@/services/aiUsage";
 
 export async function generateArticleDraft(
   articleId: string,
   options: {
     regenerate?: boolean;
+    aiProvider?: AiProvider;
+    aiModel?: string;
   } = {}
 ) {
   const article: any = await getArticleById(articleId);
@@ -37,6 +39,8 @@ export async function generateArticleDraft(
     inputData: {
       title: article.title,
       keyword: article.keywords?.keyword,
+      aiProvider: options.aiProvider || null,
+      aiModel: options.aiModel || null,
     },
   });
 
@@ -69,21 +73,16 @@ export async function generateArticleDraft(
     });
     promptMetadata = buildPromptMetadata(prompt);
 
-    const openai = getOpenAIClient();
-    
-    const response = await openai.chat.completions.create({
-      model: prompt.model,
-      messages: [{ role: "user", content: prompt.text }],
+    const result = await generateText({
+      provider: options.aiProvider || prompt.provider,
+      model: options.aiModel || prompt.model,
+      prompt: prompt.text,
       temperature: prompt.temperature,
-    });
-    const aiUsage = buildTextAiUsage({
-      model: prompt.model,
-      usage: response.usage,
     });
 
     const markdown = applyExternalLinksToMarkdown(
       applyInternalLinksToMarkdown(
-        response.choices[0]?.message?.content || "",
+        result.content,
         internalLinkSuggestions
       ),
       externalSourceSuggestions
@@ -110,7 +109,9 @@ export async function generateArticleDraft(
       status: nextStatus,
       regenerated: Boolean(options.regenerate),
       prompt: promptMetadata,
-      aiUsage,
+      aiUsage: result.aiUsage,
+      aiProviderOverride: options.aiProvider || null,
+      aiModelOverride: options.aiModel || null,
       internalLinksApplied: internalLinkSuggestions.length,
       externalSourcesApplied: externalSourceSuggestions.length,
     });
@@ -159,12 +160,14 @@ function buildPromptMetadata(prompt: {
   name: string;
   version: string | null;
   model: string;
+  provider: string;
 }) {
   return {
     id: prompt.id,
     key: prompt.promptKey,
     name: prompt.name,
     version: prompt.version,
+    provider: prompt.provider,
     model: prompt.model,
   };
 }
